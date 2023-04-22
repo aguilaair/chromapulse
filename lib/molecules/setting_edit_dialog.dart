@@ -33,6 +33,10 @@ class _SettingEditDialogState extends ConsumerState<SettingEditDialog> {
           border: const OutlineInputBorder(),
           labelText: widget.title,
         ),
+        onSubmitted: (value) {
+          widget.onSave(value);
+          Navigator.of(context).pop();
+        },
       ),
       actions: [
         TextButton(

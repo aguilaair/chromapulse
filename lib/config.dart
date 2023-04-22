@@ -1,4 +1,5 @@
 import 'package:artcolor/molecules/setting_edit_dialog.dart';
+import 'package:artcolor/show.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
@@ -19,7 +20,12 @@ class _ConfiguationPageState extends ConsumerState<ConfiguationPage> {
     final settings = ref.watch(settingsStateProvider);
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {},
+        onPressed: () {
+          // Go to show page
+          Navigator.of(context).push(MaterialPageRoute(
+            builder: (context) => const ShowPage(),
+          ));
+        },
         label: const Text("Start"),
         icon: const Icon(Icons.play_arrow),
       ),
@@ -47,71 +53,153 @@ class _ConfiguationPageState extends ConsumerState<ConfiguationPage> {
             ExpansionTile(
               title: const Text("Device Configuration"),
               children: [
-                const ListTile(
-                  title: Text("Start DMX Channel"),
-                  subtitle: Text("1234"),
-                  trailing: Icon(Icons.edit),
-                ),
-                const ListTile(
-                  title: Text("Universe"),
-                  subtitle: Text("Universe 1"),
-                  trailing: Icon(Icons.edit),
+                ListTile(
+                    title: const Text("Start DMX Channel"),
+                    subtitle: Text(settings.dmxStartChannel.toString()),
+                    trailing: IconButton(
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => SettingEditDialog(
+                            title: "Start DMX Channel",
+                            onSave: (setting) {
+                              try {
+                                final channel = int.parse(setting);
+                                if (channel < 1 || channel > 512 - 3) {
+                                  throw Exception("");
+                                }
+
+                                ref
+                                    .read(settingsStateProvider.notifier)
+                                    .setDmxStartChannel(int.parse(setting));
+                              } catch (e) {
+                                // Show error snackbar
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content:
+                                        Text("Invalid channel number, enter "
+                                            "a number between 1 and 509"),
+                                  ),
+                                );
+                              }
+                            },
+                            initialValue: settings.dmxStartChannel.toString(),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.edit),
+                    )),
+                ListTile(
+                  title: const Text("Universe"),
+                  subtitle: Text("Universe ${settings.universe}"),
+                  trailing: IconButton(
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => SettingEditDialog(
+                          title: "Universe",
+                          onSave: (setting) {
+                            try {
+                              final universe = int.parse(setting);
+                              if (universe < 1 || universe > 30000) {
+                                throw Exception("");
+                              }
+                              ref
+                                  .read(settingsStateProvider.notifier)
+                                  .setUniverse(universe);
+                            } catch (e) {
+                              // Show error snackbar
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content:
+                                      Text("Invalid universe number, enter "
+                                          "a number between 1 and 30,000"),
+                                ),
+                              );
+                            }
+                          },
+                          initialValue: settings.universe.toString(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.edit),
+                  ),
                 ),
                 ListTile(
                   title: const Text("Allow Broadcast"),
                   subtitle: const Text("Enabling this will allow the device to "
                       "listen to broadcats from the contoller."),
                   trailing: Switch(
-                    value: true,
-                    onChanged: (value) {},
+                    value: settings.allowBroadcast,
+                    onChanged: (value) {
+                      ref
+                          .read(settingsStateProvider.notifier)
+                          .setAllowBroadcast(value);
+                    },
                   ),
                 ),
               ],
             ),
-            ExpansionTile(title: Text("Controller Configuration"), children: [
-              ListTile(
-                title: Text("Controller IP Address"),
-                subtitle: Text(settings.controllerIpAddress),
-                trailing: IconButton(
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) => SettingEditDialog(
-                        title: "Controller IP Address",
-                        onSave: (setting) {
-                          ref
-                              .read(settingsStateProvider.notifier)
-                              .setControllerIpAddress(setting);
-                        },
-                        initialValue: settings.controllerIpAddress,
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.edit),
-                ),
-              ),
-              ListTile(
-                title: const Text("Controller Port"),
-                subtitle: Text(settings.controllerPort.toString()),
-                trailing: IconButton(
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) => SettingEditDialog(
-                        title: "Controller Port",
-                        onSave: (setting) {
-                          ref
-                              .read(settingsStateProvider.notifier)
-                              .setControllerPort(int.parse(setting));
-                        },
-                        initialValue: settings.controllerPort.toString(),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.edit),
-                ),
-              ),
-            ]),
+            ExpansionTile(
+                title: const Text("Controller Configuration"),
+                children: [
+                  ListTile(
+                    title: const Text("Controller IP Address"),
+                    subtitle: Text(settings.controllerIpAddress),
+                    trailing: IconButton(
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => SettingEditDialog(
+                            title: "Controller IP Address",
+                            onSave: (setting) {
+                              ref
+                                  .read(settingsStateProvider.notifier)
+                                  .setControllerIpAddress(setting);
+                            },
+                            initialValue: settings.controllerIpAddress,
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.edit),
+                    ),
+                  ),
+                  ListTile(
+                    title: const Text("Controller Port"),
+                    subtitle: Text(settings.controllerPort.toString()),
+                    trailing: IconButton(
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => SettingEditDialog(
+                            title: "Controller Port",
+                            onSave: (setting) {
+                              try {
+                                if (int.parse(setting) < 1 ||
+                                    int.parse(setting) > 65535) {
+                                  throw Exception("");
+                                }
+                                ref
+                                    .read(settingsStateProvider.notifier)
+                                    .setControllerPort(int.parse(setting));
+                              } catch (e) {
+                                // Show error snackbar
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("Invalid port number, enter "
+                                        "a number between 1 and 65535"),
+                                  ),
+                                );
+                              }
+                            },
+                            initialValue: settings.controllerPort.toString(),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.edit),
+                    ),
+                  ),
+                ]),
             const ExpansionTile(title: Text("About"), children: [
               ListTile(
                 title: Text("Version"),

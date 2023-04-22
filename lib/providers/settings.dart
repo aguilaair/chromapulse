@@ -4,23 +4,23 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 class SettingsState {
-  final String dmxStartChannel;
-  final String universe;
+  final int dmxStartChannel;
+  final int universe;
   final bool allowBroadcast;
   final String controllerIpAddress;
   final int controllerPort;
 
   SettingsState({
-    this.dmxStartChannel = "1",
-    this.universe = "1",
+    this.dmxStartChannel = 1,
+    this.universe = 1,
     this.allowBroadcast = true,
     this.controllerIpAddress = "",
-    this.controllerPort = 0,
+    this.controllerPort = 1936,
   });
 
   SettingsState copyWith({
-    String? dmxStartChannel,
-    String? universe,
+    int? dmxStartChannel,
+    int? universe,
     bool? allowBroadcast,
     String? controllerIpAddress,
     int? controllerPort,
@@ -95,7 +95,7 @@ class SettingsProvider extends StateNotifier<SettingsState> {
 
   static const String key = "settings";
 
-  void setDmxStartChannel(String value) {
+  void setDmxStartChannel(int value) {
     state = SettingsState(
       dmxStartChannel: value,
       universe: state.universe,
@@ -106,7 +106,7 @@ class SettingsProvider extends StateNotifier<SettingsState> {
     saveSettings();
   }
 
-  void setUniverse(String value) {
+  void setUniverse(int value) {
     state = SettingsState(
       dmxStartChannel: state.dmxStartChannel,
       universe: value,
