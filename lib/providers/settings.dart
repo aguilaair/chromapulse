@@ -9,6 +9,7 @@ class SettingsState {
   final bool allowBroadcast;
   final String controllerIpAddress;
   final int controllerPort;
+  final bool use4Channels;
 
   SettingsState({
     this.dmxStartChannel = 1,
@@ -16,6 +17,7 @@ class SettingsState {
     this.allowBroadcast = true,
     this.controllerIpAddress = "",
     this.controllerPort = 1936,
+    this.use4Channels = true,
   });
 
   SettingsState copyWith({
@@ -24,6 +26,7 @@ class SettingsState {
     bool? allowBroadcast,
     String? controllerIpAddress,
     int? controllerPort,
+    bool? use4Channels,
   }) {
     return SettingsState(
       dmxStartChannel: dmxStartChannel ?? this.dmxStartChannel,
@@ -31,6 +34,7 @@ class SettingsState {
       allowBroadcast: allowBroadcast ?? this.allowBroadcast,
       controllerIpAddress: controllerIpAddress ?? this.controllerIpAddress,
       controllerPort: controllerPort ?? this.controllerPort,
+      use4Channels: use4Channels ?? this.use4Channels,
     );
   }
 
@@ -41,16 +45,18 @@ class SettingsState {
       'allowBroadcast': allowBroadcast,
       'controllerIpAddress': controllerIpAddress,
       'controllerPort': controllerPort,
+      'use4Channels': use4Channels,
     };
   }
 
   factory SettingsState.fromMap(Map<String, dynamic> map) {
     return SettingsState(
-      dmxStartChannel: map['dmxStartChannel'] ?? '',
-      universe: map['universe'] ?? '',
-      allowBroadcast: map['allowBroadcast'] ?? false,
+      dmxStartChannel: map['dmxStartChannel']?.toInt() ?? 0,
+      universe: map['universe']?.toInt() ?? 0,
+      allowBroadcast: map['allowBroadcast'] ?? true,
       controllerIpAddress: map['controllerIpAddress'] ?? '',
       controllerPort: map['controllerPort']?.toInt() ?? 0,
+      use4Channels: map['use4Channels'] ?? true,
     );
   }
 
@@ -61,7 +67,7 @@ class SettingsState {
 
   @override
   String toString() {
-    return 'SettingsState(dmxStartChannel: $dmxStartChannel, universe: $universe, allowBroadcast: $allowBroadcast, controllerIpAddress: $controllerIpAddress, controllerPort: $controllerPort)';
+    return 'SettingsState(dmxStartChannel: $dmxStartChannel, universe: $universe, allowBroadcast: $allowBroadcast, controllerIpAddress: $controllerIpAddress, controllerPort: $controllerPort, use4Channels: $use4Channels)';
   }
 
   @override
@@ -73,7 +79,8 @@ class SettingsState {
         other.universe == universe &&
         other.allowBroadcast == allowBroadcast &&
         other.controllerIpAddress == controllerIpAddress &&
-        other.controllerPort == controllerPort;
+        other.controllerPort == controllerPort &&
+        other.use4Channels == use4Channels;
   }
 
   @override
@@ -82,7 +89,8 @@ class SettingsState {
         universe.hashCode ^
         allowBroadcast.hashCode ^
         controllerIpAddress.hashCode ^
-        controllerPort.hashCode;
+        controllerPort.hashCode ^
+        use4Channels.hashCode;
   }
 }
 
@@ -146,6 +154,18 @@ class SettingsProvider extends StateNotifier<SettingsState> {
       allowBroadcast: state.allowBroadcast,
       controllerIpAddress: state.controllerIpAddress,
       controllerPort: value,
+    );
+    saveSettings();
+  }
+
+  void setUse4Channels(bool value) {
+    state = SettingsState(
+      dmxStartChannel: state.dmxStartChannel,
+      universe: state.universe,
+      allowBroadcast: state.allowBroadcast,
+      controllerIpAddress: state.controllerIpAddress,
+      controllerPort: state.controllerPort,
+      use4Channels: value,
     );
     saveSettings();
   }

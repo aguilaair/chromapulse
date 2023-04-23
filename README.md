@@ -1,4 +1,4 @@
-# artcolor
+# chromapulse
 
 A new Flutter project.
 

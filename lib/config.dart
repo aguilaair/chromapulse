@@ -1,5 +1,5 @@
-import 'package:artcolor/molecules/setting_edit_dialog.dart';
-import 'package:artcolor/show.dart';
+import 'package:chromapulse/molecules/setting_edit_dialog.dart';
+import 'package:chromapulse/show.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
@@ -54,8 +54,22 @@ class _ConfiguationPageState extends ConsumerState<ConfiguationPage> {
               title: const Text("Device Configuration"),
               children: [
                 ListTile(
-                    title: const Text("Start DMX Channel"),
-                    subtitle: Text(settings.dmxStartChannel.toString()),
+                  title: const Text("4-Channel Mode"),
+                  subtitle: const Text("Wether to use 4 channels or 3. The 4th "
+                      "channel is used to control device brightness."),
+                  trailing: Switch(
+                    value: settings.use4Channels,
+                    onChanged: (value) {
+                      ref
+                          .read(settingsStateProvider.notifier)
+                          .setUse4Channels(value);
+                    },
+                  ),
+                ),
+                ListTile(
+                    title: const Text("DMX Channels"),
+                    subtitle: Text(
+                        "${settings.dmxStartChannel} through ${settings.dmxStartChannel + (settings.use4Channels ? 4 : 3)}"),
                     trailing: IconButton(
                       onPressed: () {
                         showDialog(
@@ -65,7 +79,11 @@ class _ConfiguationPageState extends ConsumerState<ConfiguationPage> {
                             onSave: (setting) {
                               try {
                                 final channel = int.parse(setting);
-                                if (channel < 1 || channel > 512 - 3) {
+                                if (channel < 1 ||
+                                    channel >
+                                        (settings.use4Channels
+                                            ? (512 - 4)
+                                            : (512 - 3))) {
                                   throw Exception("");
                                 }
 
@@ -75,10 +93,10 @@ class _ConfiguationPageState extends ConsumerState<ConfiguationPage> {
                               } catch (e) {
                                 // Show error snackbar
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content:
-                                        Text("Invalid channel number, enter "
-                                            "a number between 1 and 509"),
+                                  SnackBar(
+                                    content: Text(
+                                        "Invalid channel number, enter "
+                                        "a number between 1 and ${(settings.use4Channels ? (512 - 4) : (512 - 3))}"),
                                   ),
                                 );
                               }
