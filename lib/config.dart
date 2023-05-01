@@ -69,7 +69,7 @@ class _ConfiguationPageState extends ConsumerState<ConfiguationPage> {
                 ListTile(
                     title: const Text("DMX Channels"),
                     subtitle: Text(
-                        "${settings.dmxStartChannel} through ${settings.dmxStartChannel + (settings.use4Channels ? 4 : 3)}"),
+                        "${settings.dmxStartChannel} through ${settings.dmxStartChannel + (settings.use4Channels ? 3 : 2)}"),
                     trailing: IconButton(
                       onPressed: () {
                         showDialog(
@@ -82,8 +82,8 @@ class _ConfiguationPageState extends ConsumerState<ConfiguationPage> {
                                 if (channel < 1 ||
                                     channel >
                                         (settings.use4Channels
-                                            ? (512 - 4)
-                                            : (512 - 3))) {
+                                            ? (512 - 3)
+                                            : (512 - 2))) {
                                   throw Exception("");
                                 }
 
@@ -96,7 +96,7 @@ class _ConfiguationPageState extends ConsumerState<ConfiguationPage> {
                                   SnackBar(
                                     content: Text(
                                         "Invalid channel number, enter "
-                                        "a number between 1 and ${(settings.use4Channels ? (512 - 4) : (512 - 3))}"),
+                                        "a number between 1 and ${(settings.use4Channels ? (512 - 3) : (512 - 2))}"),
                                   ),
                                 );
                               }

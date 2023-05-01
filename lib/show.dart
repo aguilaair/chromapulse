@@ -55,19 +55,7 @@ class _ShowPageState extends ConsumerState<ShowPage> {
     ScaffoldMessenger.of(context).showMaterialBanner(MaterialBanner(
       content: Row(
         children: [
-          Chip(
-            label: Text(
-              "Status: ${artnetState!.isReady ? "Ready" : "Not Ready"}",
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: artnetState!.isReady
-                        ? Colors.white
-                        : Theme.of(context).colorScheme.onError,
-                  ),
-            ),
-            backgroundColor: artnetState!.isReady
-                ? Colors.green
-                : Theme.of(context).colorScheme.error,
-          ),
+          StatusBadge(),
           const SizedBox(width: 8),
           IconButton(
             onPressed: () {
@@ -77,6 +65,7 @@ class _ShowPageState extends ConsumerState<ShowPage> {
               // Delay exit to allow material banner to be removed
               Future.delayed(const Duration(milliseconds: 500), () {
                 if (mounted) Navigator.of(context).pop();
+                ref.read(artnetStateProvider.notifier).dispose();
               });
             },
             icon: const Icon(Icons.settings),
@@ -93,5 +82,27 @@ class _ShowPageState extends ConsumerState<ShowPage> {
         ),
       ],
     ));
+  }
+}
+
+class StatusBadge extends HookConsumerWidget {
+  const StatusBadge({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final artnetState = ref.watch(artnetStateProvider);
+    return Chip(
+      label: Text(
+        "Status: ${artnetState.isReady ? "Ready" : "Not Ready"}",
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: artnetState.isReady
+                  ? Colors.white
+                  : Theme.of(context).colorScheme.onError,
+            ),
+      ),
+      backgroundColor: artnetState.isReady
+          ? Colors.green
+          : Theme.of(context).colorScheme.error,
+    );
   }
 }
