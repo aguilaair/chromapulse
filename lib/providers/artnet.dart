@@ -56,7 +56,6 @@ class ArtnetProvider extends StateNotifier<ArtnetState> {
   }
 
   RawDatagramSocket? _udp;
-  Timer? _timer;
 
   @override
   void dispose() {
@@ -66,7 +65,6 @@ class ArtnetProvider extends StateNotifier<ArtnetState> {
 
   Future<void> _init() async {
     final settings = ref.read(settingsStateProvider);
-    final network = ref.read(networkStateProvider);
 
     // Subscribe to UDP packets
     try {
@@ -130,6 +128,8 @@ class ArtnetProvider extends StateNotifier<ArtnetState> {
         // Get the channels we need
         final dmxToWatch = dmx.dmx.sublist(settings.dmxStartChannel - 1,
             settings.dmxStartChannel - 1 + (settings.use4Channels ? 4 : 3));
+
+        print(dmxToWatch);
 
         state = state = ArtnetState(
           ip: state.ip,

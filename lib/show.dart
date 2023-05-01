@@ -1,7 +1,10 @@
 import 'package:chromapulse/providers/artnet.dart';
 import 'package:chromapulse/providers/providers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:screen_brightness/screen_brightness.dart';
+import 'package:wakelock/wakelock.dart';
 
 class ShowPage extends StatefulHookConsumerWidget {
   const ShowPage({super.key});
@@ -17,15 +20,37 @@ class _ShowPageState extends ConsumerState<ShowPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showMaterialBanner();
     });
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
+    Wakelock.enable();
     super.didChangeDependencies();
+  }
+
+  @override
+  void dispose() {
+    ScreenBrightness().resetScreenBrightness();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    Wakelock.disable();
+    super.dispose();
   }
 
   late ArtnetState? artnetState;
   bool _isBannerVisible = false;
+  int lastBrightness = -1;
 
   @override
   Widget build(BuildContext context) {
     artnetState = ref.watch(artnetStateProvider);
+    final is4Channel = ref.read(settingsStateProvider).use4Channels;
+    if (is4Channel) {
+      if (lastBrightness == -1 && artnetState?.brightness.value != null) {
+        lastBrightness = artnetState?.brightness.value ?? 0;
+        ScreenBrightness().setScreenBrightness(lastBrightness / 255);
+      } else if (artnetState?.brightness.value != null &&
+          lastBrightness != (artnetState!.brightness.value)) {
+        lastBrightness = artnetState?.brightness.value ?? 0;
+        ScreenBrightness().setScreenBrightness(lastBrightness / 255);
+      }
+    }
     return Scaffold(
       body: GestureDetector(
         onDoubleTap: () {
@@ -55,7 +80,7 @@ class _ShowPageState extends ConsumerState<ShowPage> {
     ScaffoldMessenger.of(context).showMaterialBanner(MaterialBanner(
       content: Row(
         children: [
-          StatusBadge(),
+          const StatusBadge(),
           const SizedBox(width: 8),
           IconButton(
             onPressed: () {
