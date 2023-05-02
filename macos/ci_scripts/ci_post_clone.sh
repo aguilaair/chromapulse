@@ -7,6 +7,9 @@ cd $CI_WORKSPACE # change working directory to the root of your cloned repo.
 git clone https://github.com/flutter/flutter.git --depth 1 -b stable $HOME/flutter
 export PATH="$PATH:$HOME/flutter/bin"
 
+# Enable macos
+flutter config --enable-macos-desktop
+
 # Install Flutter artifacts for iOS (--ios), or macOS (--macos) platforms.
 flutter precache --macos
 
@@ -18,6 +21,9 @@ HOMEBREW_NO_AUTO_UPDATE=1 # disable homebrew's automatic updates.
 brew install cocoapods
 
 # Install CocoaPods dependencies.
-cd macos && pod install # run `pod install` in the `ios` directory.
+cd macos && pod install # run `pod install` in the `macos` directory.
+
+# Build the macOS app.
+flutter build macos
 
 exit 0
