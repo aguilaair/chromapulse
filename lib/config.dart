@@ -32,7 +32,7 @@ class _ConfiguationPageState extends ConsumerState<ConfiguationPage> {
       body: CustomScrollView(
         slivers: [
           SliverAppBar.large(
-            title: const Text("Chrome Pulse"),
+            title: const Text("ChromaPulse"),
             expandedHeight: 200,
           ),
           SliverList(
