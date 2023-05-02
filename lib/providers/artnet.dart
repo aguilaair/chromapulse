@@ -73,7 +73,6 @@ class ArtnetProvider extends StateNotifier<ArtnetState> {
         settings.controllerPort,
       );
     } catch (e) {
-      print(e);
       return;
     }
 
@@ -128,8 +127,6 @@ class ArtnetProvider extends StateNotifier<ArtnetState> {
         // Get the channels we need
         final dmxToWatch = dmx.dmx.sublist(settings.dmxStartChannel - 1,
             settings.dmxStartChannel - 1 + (settings.use4Channels ? 4 : 3));
-
-        print(dmxToWatch);
 
         state = state = ArtnetState(
           ip: state.ip,
