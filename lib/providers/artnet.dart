@@ -89,7 +89,7 @@ class ArtnetProvider extends StateNotifier<ArtnetState> {
       red: DmxChannel(channel: 0, value: 0, universe: 0),
       green: DmxChannel(channel: 0, value: 0, universe: 0),
       blue: DmxChannel(channel: 0, value: 0, universe: 0),
-      brightness: DmxChannel(channel: 0, value: 0, universe: 0),
+      brightness: DmxChannel(channel: 0, value: 255, universe: 0),
       isBroadcasting: state.isBroadcasting,
       isReady: true,
     );
