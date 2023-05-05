@@ -69,7 +69,7 @@ class ArtnetProvider extends StateNotifier<ArtnetState> {
     // Subscribe to UDP packets
     try {
       _udp = await RawDatagramSocket.bind(
-        InternetAddress.anyIPv4,
+        settings.controllerIpAddress,
         settings.controllerPort,
       );
     } catch (e) {
