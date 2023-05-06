@@ -53,5 +53,9 @@
 	<false/>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>ChromaPulse uses your location to find nearby light boards.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>ChromaPulse uses your location to find nearby light boards.</string>
 </dict>
 </plist>
