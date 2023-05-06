@@ -40,9 +40,8 @@ dependencies:
   network_info_plus: ^3.0.3
   hive_flutter: ^1.1.0
   flutter_hooks: ^0.18.6
-  udp: ^5.0.3
   screen_brightness: ^0.2.2
-  wakelock: ^0.4.0
+  wakelock: ^0.6.2
 
 dev_dependencies:
   flutter_test:

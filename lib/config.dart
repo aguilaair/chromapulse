@@ -221,7 +221,7 @@ class _ConfiguationPageState extends ConsumerState<ConfiguationPage> {
             const ExpansionTile(title: Text("About"), children: [
               ListTile(
                 title: Text("Version"),
-                subtitle: Text("1.0.0 Beta"),
+                subtitle: Text("1.0.0"),
               ),
               ListTile(
                 title: Text("Author"),

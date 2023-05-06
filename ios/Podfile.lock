@@ -34,7 +34,7 @@ SPEC CHECKSUMS:
   network_info_plus: b78876159360f5580608c2cea620d6ceffabd0ad
   path_provider_foundation: c68054786f1b4f3343858c1e1d0caaded73f0be9
   screen_brightness_ios: 715ca807df953bf676d339f11464e438143ee625
-  wakelock: b0843b2479edbf6504d8d262c2959446f35373aa
+  wakelock: d0fc7c864128eac40eba1617cb5264d9c940b46f
 
 PODFILE CHECKSUM: ef19549a9bc3046e7bb7d2fab4d021637c0c58a3
 

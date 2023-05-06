@@ -49,7 +49,7 @@ class ArtnetProvider extends StateNotifier<ArtnetState> {
           red: DmxChannel(channel: 0, value: 0, universe: 0),
           green: DmxChannel(channel: 0, value: 0, universe: 0),
           blue: DmxChannel(channel: 0, value: 0, universe: 0),
-          brightness: DmxChannel(channel: 0, value: 0, universe: 0),
+          brightness: DmxChannel(channel: 0, value: 255, universe: 0),
           isBroadcasting: false,
         )) {
     _init();
@@ -69,7 +69,7 @@ class ArtnetProvider extends StateNotifier<ArtnetState> {
     // Subscribe to UDP packets
     try {
       _udp = await RawDatagramSocket.bind(
-        settings.controllerIpAddress,
+        InternetAddress.anyIPv4,
         settings.controllerPort,
       );
     } catch (e) {
