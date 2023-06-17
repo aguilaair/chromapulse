@@ -180,6 +180,11 @@ class SettingsProvider extends StateNotifier<SettingsState> {
     Hive.box(key).put(key, state.toJson());
   }
 
+  void importSettings(SettingsState settings) {
+    state = settings;
+    saveSettings();
+  }
+
   void loadSettings() {
     // Uses Hive
     final box = Hive.box(key);

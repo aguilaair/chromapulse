@@ -57,5 +57,9 @@
 	<string>ChromaPulse uses your location to interact with nearby light boards.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>ChromaPulse uses your location to interact with nearby light boards.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs camera access to scan QR codes</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app needs photos access to get QR code from photo library</string>
 </dict>
 </plist>

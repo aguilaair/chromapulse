@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import 'molecules/import_dialog.dart';
 import 'providers/providers.dart';
 
 class ConfiguationPage extends StatefulHookConsumerWidget {
@@ -57,7 +58,13 @@ class _ConfiguationPageState extends ConsumerState<ConfiguationPage> {
                 // export config icon
                 icon: const Icon(CupertinoIcons.square_arrow_down),
                 tooltip: "Scan/Import Config",
-                onPressed: () {},
+                onPressed: () {
+                  // Dialog with QR code
+                  showDialog(
+                    context: context,
+                    builder: (context) => const ImportConfigDialog(),
+                  );
+                },
               ),
               IconButton(
                 icon: const Icon(CupertinoIcons.square_arrow_up),
