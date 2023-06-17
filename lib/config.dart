@@ -1,7 +1,10 @@
+import 'package:chromapulse/molecules/export_dialog.dart';
 import 'package:chromapulse/molecules/setting_edit_dialog.dart';
 import 'package:chromapulse/show.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'providers/providers.dart';
 
@@ -14,6 +17,21 @@ class ConfiguationPage extends StatefulHookConsumerWidget {
 }
 
 class _ConfiguationPageState extends ConsumerState<ConfiguationPage> {
+  String ver = "Unknown";
+
+  @override
+  void initState() {
+    super.initState();
+    _getVersion();
+  }
+
+  Future<void> _getVersion() async {
+    final packageInfo = await PackageInfo.fromPlatform();
+    setState(() {
+      ver = packageInfo.version;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final networkInfo = ref.watch(networkStateProvider);
@@ -34,6 +52,25 @@ class _ConfiguationPageState extends ConsumerState<ConfiguationPage> {
           SliverAppBar.large(
             title: const Text("ChromaPulse"),
             expandedHeight: 200,
+            actions: [
+              IconButton(
+                // export config icon
+                icon: const Icon(CupertinoIcons.square_arrow_down),
+                tooltip: "Scan/Import Config",
+                onPressed: () {},
+              ),
+              IconButton(
+                icon: const Icon(CupertinoIcons.square_arrow_up),
+                tooltip: "Export Config",
+                onPressed: () {
+                  // Dialog with QR code
+                  showDialog(
+                    context: context,
+                    builder: (context) => const ExportConfigDialog(),
+                  );
+                },
+              ),
+            ],
           ),
           SliverList(
               delegate: SliverChildListDelegate.fixed([
@@ -218,12 +255,12 @@ class _ConfiguationPageState extends ConsumerState<ConfiguationPage> {
                     ),
                   ),
                 ]),
-            const ExpansionTile(title: Text("About"), children: [
+            ExpansionTile(title: const Text("About"), children: [
               ListTile(
-                title: Text("Version"),
-                subtitle: Text("1.0.0"),
+                title: const Text("Version"),
+                subtitle: Text(ver),
               ),
-              ListTile(
+              const ListTile(
                 title: Text("Author"),
                 subtitle: Text("Eduardo Moreno"),
               ),

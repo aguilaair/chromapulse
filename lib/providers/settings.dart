@@ -16,7 +16,7 @@ class SettingsState {
     this.universe = 1,
     this.allowBroadcast = true,
     this.controllerIpAddress = "",
-    this.controllerPort = 1936,
+    this.controllerPort = 6454,
     this.use4Channels = true,
   });
 
