@@ -53,12 +53,13 @@ class _ShowPageState extends ConsumerState<ShowPage> {
     artnetState = ref.watch(artnetStateProvider);
     final is4Channel = ref.read(settingsStateProvider).use4Channels;
     late String packetTimeAgo;
+    Duration? packetTimeDifference;
     if (artnetState?.lastValidPacketTime != null) {
       // Difference between now and last packet time
-      final difference = DateTime.now()
+      packetTimeDifference = DateTime.now()
           .difference(artnetState!.lastValidPacketTime ?? DateTime.now());
       // seconds since last packet
-      final seconds = difference.inSeconds;
+      final seconds = packetTimeDifference.inSeconds;
       packetTimeAgo = "${seconds}s ago";
     } else {
       packetTimeAgo = "Never";
@@ -96,6 +97,16 @@ class _ShowPageState extends ConsumerState<ShowPage> {
                 ),
               ),
             ),
+            if ((packetTimeDifference?.inSeconds ?? 11) > 10)
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: LinearProgressIndicator(
+                  color: getStatusColor(context, artnetState!),
+                  backgroundColor: Colors.transparent,
+                ),
+              ),
             AnimatedPositioned(
               duration: const Duration(milliseconds: 300),
               bottom: _isBannerVisible ? 20 : -200,
@@ -209,19 +220,28 @@ class StatusBadge extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final artnetState = ref.watch(artnetStateProvider);
     return Chip(
-      label: Text(
-        "Status: ${artnetState.isReady ? artnetState.lastValidPacketTime != null ? "Recieveing" : "Ready (Waiting)" : "Not Ready"}",
-        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: artnetState.isReady
-                  ? Colors.white
-                  : Theme.of(context).colorScheme.onError,
-            ),
-      ),
-      backgroundColor: artnetState.isReady
-          ? artnetState.lastValidPacketTime == null
-              ? Colors.amber.shade700
-              : Colors.green
-          : Theme.of(context).colorScheme.error,
-    );
+        label: Text(
+          "Status: ${artnetState.isReady ? artnetState.lastValidPacketTime != null ? "Recieveing" : "Ready (Waiting)" : "Not Ready"}",
+          style: Theme.of(context)
+              .textTheme
+              .labelLarge
+              ?.copyWith(color: Colors.white),
+        ),
+        backgroundColor: getStatusColor(context, artnetState),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(999),
+        ),
+        side: const BorderSide(
+          color: Colors.white,
+          width: 1,
+        ));
   }
+}
+
+Color getStatusColor(BuildContext context, ArtnetState artnetState) {
+  return artnetState.isReady
+      ? artnetState.lastValidPacketTime == null
+          ? Colors.amber.shade700
+          : Colors.green
+      : Colors.red;
 }
