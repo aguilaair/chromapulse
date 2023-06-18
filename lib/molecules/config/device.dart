@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
@@ -69,7 +70,7 @@ class _DeviceConfigurationTileState
                   ),
                 );
               },
-              icon: const Icon(Icons.edit),
+              icon: const Icon(CupertinoIcons.pen),
             )),
         ListTile(
           title: const Text("Universe"),
@@ -103,7 +104,7 @@ class _DeviceConfigurationTileState
                 ),
               );
             },
-            icon: const Icon(Icons.edit),
+            icon: const Icon(CupertinoIcons.pen),
           ),
         ),
         ListTile(

@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
@@ -38,7 +39,7 @@ class _ControllerConfigurationTileState
                 ),
               );
             },
-            icon: const Icon(Icons.edit),
+            icon: const Icon(CupertinoIcons.pen),
           ),
         ),
         ListTile(
@@ -73,7 +74,7 @@ class _ControllerConfigurationTileState
                 ),
               );
             },
-            icon: const Icon(Icons.edit),
+            icon: const Icon(CupertinoIcons.pen),
           ),
         ),
       ],

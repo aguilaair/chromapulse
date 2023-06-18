@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -25,7 +26,7 @@ class _SettingEditDialogState extends ConsumerState<SettingEditDialog> {
     final controller = useTextEditingController(text: widget.initialValue);
 
     return AlertDialog(
-      icon: const Icon(Icons.settings),
+      icon: const Icon(CupertinoIcons.settings),
       title: Text(widget.title),
       content: TextField(
         controller: controller,
