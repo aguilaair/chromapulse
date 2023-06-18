@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math';
 
 import 'package:chromapulse/providers/providers.dart';
 import 'package:chromapulse/providers/settings.dart';
