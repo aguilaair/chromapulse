@@ -1,13 +1,13 @@
 import 'dart:convert';
-import 'dart:typed_data';
+import 'dart:math';
 
 import 'package:chromapulse/providers/providers.dart';
 import 'package:chromapulse/providers/settings.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:native_device_orientation/native_device_orientation.dart';
 
 class ImportConfigDialog extends StatefulHookConsumerWidget {
   const ImportConfigDialog({super.key});
@@ -20,6 +20,28 @@ class ImportConfigDialog extends StatefulHookConsumerWidget {
 class _ImportConfigDialogState extends ConsumerState<ImportConfigDialog> {
   SettingsState qrData = SettingsState();
   bool success = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Lock orientation to portrait
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+    ]);
+  }
+
+  @override
+  void dispose() {
+    // Unlock orientation
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -99,7 +121,7 @@ class _ImportConfigDialogState extends ConsumerState<ImportConfigDialog> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text("Config Version: "),
-                    Text("v1.0.0"),
+                    Text("v1"),
                   ],
                 ),
               ],
@@ -117,72 +139,36 @@ class _ImportConfigDialogState extends ConsumerState<ImportConfigDialog> {
                   child: SizedBox(
                     width: 200,
                     height: 200,
-                    child: NativeDeviceOrientationReader(
-                      builder: (context) {
-                        final orientation =
-                            NativeDeviceOrientationReader.orientation(context);
-                        int turns = 0;
-
-                        switch (orientation) {
-                          case NativeDeviceOrientation.landscapeLeft:
-                            turns = -1;
-                            break;
-                          case NativeDeviceOrientation.landscapeRight:
-                            turns = 1;
-                            break;
-                          case NativeDeviceOrientation.portraitDown:
-                            turns = 2;
-                            break;
-                          default:
-                            turns = 0;
-                            break;
+                    child: MobileScanner(
+                      onDetect: (barcodes) async {
+                        if (barcodes.barcodes.isEmpty) {
+                          return;
+                        }
+                        final barcode = barcodes.barcodes.first;
+                        final Uint8List? bytes = barcode.rawBytes;
+                        final json = String.fromCharCodes(bytes!);
+                        SettingsState? settings;
+                        try {
+                          settings = _decode(json);
+                        } catch (e) {
+                          return;
                         }
 
-                        return RotatedBox(
-                          quarterTurns: turns,
-                          child: MobileScanner(
-                            onDetect: (barcodes) {
-                              if (barcodes.barcodes.isEmpty) {
-                                return;
-                              }
-                              final barcode = barcodes.barcodes.first;
-                              final Uint8List? bytes = barcode.rawBytes;
-                              final json = String.fromCharCodes(bytes!);
-                              SettingsState? settings;
-                              try {
-                                settings = _decode(json);
-                              } catch (e) {
-                                return;
-                              }
-                              if (settings != null) {
-                                qrData = settings;
-                                ref
-                                    .read(settingsStateProvider.notifier)
-                                    .importSettings(settings);
-                                setState(() {
-                                  success = true;
-                                });
-                              }
-                            },
-                            placeholderBuilder: (context, size) {
-                              return const Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  // loading indicator
-                                  CircularProgressIndicator(),
-                                  SizedBox(height: 16),
-                                  Text("Initializing Camera..."),
-                                ],
-                              );
-                            },
-                            errorBuilder: (context, error, widget) {
-                              return const Center(
-                                child: Text("Error initializing camera.\n"
-                                    "Please check your camera permissions."),
-                              );
-                            },
-                          ),
-                        );
+                        //Emulate Face ID scan feedpack
+                        HapticFeedback.mediumImpact();
+                        Future.delayed(const Duration(milliseconds: 100), () {
+                          HapticFeedback.heavyImpact();
+                        });
+
+                        if (settings != null) {
+                          qrData = settings;
+                          ref
+                              .read(settingsStateProvider.notifier)
+                              .importSettings(settings);
+                          setState(() {
+                            success = true;
+                          });
+                        }
                       },
                     ),
                   ),
