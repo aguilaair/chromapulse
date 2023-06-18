@@ -203,7 +203,7 @@ class _ImportConfigDialogState extends ConsumerState<ImportConfigDialog> {
   SettingsState? _decode(String input) {
     final parts = input.split("-");
     if (parts.length != 2) {
-      return SettingsState();
+      throw Exception("Invalid config struct");
     }
     final version = parts[0];
     final data = parts[1];
