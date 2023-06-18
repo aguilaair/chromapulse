@@ -208,7 +208,7 @@ class _ImportConfigDialogState extends ConsumerState<ImportConfigDialog> {
     final version = parts[0];
     final data = parts[1];
     if (version != "ChromaPulseConfigV1") {
-      return SettingsState();
+      throw Exception("Invalid config version");
     }
     final decoded = base64Decode(data);
     final json = String.fromCharCodes(decoded);
