@@ -26,6 +26,7 @@ class ArtnetState {
   final DmxChannel brightness;
   final bool isBroadcasting;
   final bool isReady;
+  final DateTime? lastValidPacketTime;
 
   ArtnetState({
     required this.ip,
@@ -35,6 +36,7 @@ class ArtnetState {
     required this.blue,
     required this.brightness,
     required this.isBroadcasting,
+    this.lastValidPacketTime,
     this.isReady = false,
   });
 }
@@ -113,6 +115,17 @@ class ArtnetProvider extends StateNotifier<ArtnetState> {
     final isValid = ArtnetCheckPacket(data!.data);
 
     if (isValid) {
+      state = ArtnetState(
+        ip: state.ip,
+        port: state.port,
+        red: state.red,
+        green: state.green,
+        blue: state.blue,
+        brightness: state.brightness,
+        isBroadcasting: state.isBroadcasting,
+        isReady: true,
+        lastValidPacketTime: DateTime.now(),
+      );
       // Parse the packet
       final opCode = ArtnetGetOpCode(data.data);
       if (opCode == ArtnetPollPacket.opCode) {

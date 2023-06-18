@@ -52,6 +52,18 @@ class _ShowPageState extends ConsumerState<ShowPage> {
   Widget build(BuildContext context) {
     artnetState = ref.watch(artnetStateProvider);
     final is4Channel = ref.read(settingsStateProvider).use4Channels;
+    late String packetTimeAgo;
+    if (artnetState?.lastValidPacketTime != null) {
+      // Difference between now and last packet time
+      final difference = DateTime.now()
+          .difference(artnetState!.lastValidPacketTime ?? DateTime.now());
+      // seconds since last packet
+      final seconds = difference.inSeconds;
+      packetTimeAgo = "${seconds}s ago";
+    } else {
+      packetTimeAgo = "Never";
+    }
+
     if (is4Channel) {
       if (lastBrightness == -1 && artnetState?.brightness.value != null) {
         lastBrightness = artnetState?.brightness.value ?? 0;
@@ -113,7 +125,7 @@ class _ShowPageState extends ConsumerState<ShowPage> {
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text("Last Packet: "),
+                                Text("Last Packet: $packetTimeAgo"),
                                 Row(
                                   children: [
                                     Text(
@@ -198,7 +210,7 @@ class StatusBadge extends HookConsumerWidget {
     final artnetState = ref.watch(artnetStateProvider);
     return Chip(
       label: Text(
-        "Status: ${artnetState.isReady ? "Ready" : "Not Ready"}",
+        "Status: ${artnetState.isReady ? artnetState.lastValidPacketTime != null ? "Recieveing" : "Ready (Waiting)" : "Not Ready"}",
         style: Theme.of(context).textTheme.labelLarge?.copyWith(
               color: artnetState.isReady
                   ? Colors.white
@@ -206,7 +218,9 @@ class StatusBadge extends HookConsumerWidget {
             ),
       ),
       backgroundColor: artnetState.isReady
-          ? Colors.green
+          ? artnetState.lastValidPacketTime == null
+              ? Colors.amber.shade700
+              : Colors.green
           : Theme.of(context).colorScheme.error,
     );
   }
