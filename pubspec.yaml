@@ -45,6 +45,9 @@ dependencies:
   package_info_plus: ^3.1.2
   qr_flutter: ^4.1.0
   mobile_scanner: ^3.2.0
+  mix: 
+    git:
+      url: https://github.com/aguilaair/mix
 
 dev_dependencies:
   flutter_test:

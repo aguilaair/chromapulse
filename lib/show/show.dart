@@ -1,9 +1,11 @@
 import 'package:chromapulse/providers/artnet.dart';
 import 'package:chromapulse/providers/providers.dart';
+import 'package:chromapulse/show/show.style.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:mix/mix.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 import 'package:wakelock/wakelock.dart';
 
@@ -76,47 +78,54 @@ class _ShowPageState extends ConsumerState<ShowPage> {
       }
     }
     return Scaffold(
-      body: GestureDetector(
-        onDoubleTap: () {
+      body: WillPopScope(
+        onWillPop: () async {
+          if (_isBannerVisible) {
+            return true;
+          }
           setState(() {
             _isBannerVisible = true;
           });
+          return false;
         },
-        behavior: HitTestBehavior.opaque,
-        child: Stack(
-          children: [
-            Positioned(
-              child: Container(
-                width: double.infinity,
-                height: double.infinity,
-                color: Color.fromARGB(
-                  255,
-                  artnetState?.red.value ?? 0,
-                  artnetState?.green.value ?? 0,
-                  artnetState?.blue.value ?? 0,
-                ),
-              ),
-            ),
-            if ((packetTimeDifference?.inSeconds ?? 11) > 10)
+        child: GestureDetector(
+          onDoubleTap: () {
+            setState(() {
+              _isBannerVisible = true;
+            });
+          },
+          behavior: HitTestBehavior.opaque,
+          child: Stack(
+            children: [
               Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: LinearProgressIndicator(
-                  color: getStatusColor(context, artnetState!),
-                  backgroundColor: Colors.transparent,
+                child: Box(
+                  style: getLightStyle().merge(StyleMix(backgroundColor(
+                    Color.fromARGB(
+                      255,
+                      artnetState?.red.value ?? 0,
+                      artnetState?.green.value ?? 0,
+                      artnetState?.blue.value ?? 0,
+                    ),
+                  ),),),
                 ),
               ),
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 300),
-              bottom: _isBannerVisible ? 20 : -200,
-              right: 0,
-              left: 0,
-              child: Card(
-                  shadowColor: Colors.white.withOpacity(0.2),
-                  elevation: 10,
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
+              if ((packetTimeDifference?.inSeconds ?? 11) > 10)
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: LinearProgressIndicator(
+                    color: getStatusColor(artnetState!),
+                    backgroundColor: Colors.transparent,
+                  ),
+                ),
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 300),
+                bottom: _isBannerVisible ? 20 : -200,
+                right: 0,
+                left: 0,
+                child: Box(
+                    style: getShowCardStyle(),
                     child: Column(
                       children: [
                         Row(
@@ -196,17 +205,20 @@ class _ShowPageState extends ConsumerState<ShowPage> {
                                     cleanUp();
                                     Navigator.of(context).pop();
                                   },
-                                  icon: const Icon(CupertinoIcons.settings),
+                                  icon: StyledIcon(
+                                    CupertinoIcons.settings,
+                                    style: getShowCardStyle(),
+                                  ),
                                 ),
                               ],
                             )
                           ],
                         )
                       ],
-                    ),
-                  )),
-            ),
-          ],
+                    )),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -219,29 +231,15 @@ class StatusBadge extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final artnetState = ref.watch(artnetStateProvider);
-    return Chip(
-        label: Text(
-          "Status: ${artnetState.isReady ? artnetState.lastValidPacketTime != null ? "Recieveing" : "Ready (Waiting)" : "Not Ready"}",
-          style: Theme.of(context)
-              .textTheme
-              .labelLarge
-              ?.copyWith(color: Colors.white),
-        ),
-        backgroundColor: getStatusColor(context, artnetState),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(999),
-        ),
-        side: const BorderSide(
-          color: Colors.white,
-          width: 1,
-        ));
+    return Box(
+      style: getChipStatusStyle(artnetState),
+      child: Text(
+        "Status: ${artnetState.isReady ? artnetState.lastValidPacketTime != null ? "Recieveing" : "Ready (Waiting)" : "Not Ready"}",
+        style: Theme.of(context)
+            .textTheme
+            .labelLarge
+            ?.copyWith(color: Colors.white),
+      ),
+    );
   }
-}
-
-Color getStatusColor(BuildContext context, ArtnetState artnetState) {
-  return artnetState.isReady
-      ? artnetState.lastValidPacketTime == null
-          ? Colors.amber.shade700
-          : Colors.green
-      : Colors.red;
 }

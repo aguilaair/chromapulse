@@ -3,7 +3,7 @@ import 'package:chromapulse/molecules/config/controller.dart';
 import 'package:chromapulse/molecules/config/device.dart';
 import 'package:chromapulse/molecules/config/network.dart';
 import 'package:chromapulse/molecules/export_dialog.dart';
-import 'package:chromapulse/show.dart';
+import 'package:chromapulse/show/show.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
