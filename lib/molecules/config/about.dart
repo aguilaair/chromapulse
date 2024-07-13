@@ -43,7 +43,7 @@ class _AboutConfigurationTileState extends State<AboutConfigurationTile> {
           width: 64,
           height: 64,
         ),
-        applicationLegalese: "© 2023 Eduardo Moreno",
+        applicationLegalese: "© 2024 Eduardo Moreno",
         aboutBoxChildren: const [
           Text(
             "This application is open source and licensed under the MIT license."
