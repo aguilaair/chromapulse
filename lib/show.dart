@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:screen_brightness/screen_brightness.dart';
-import 'package:wakelock/wakelock.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 class ShowPage extends StatefulHookConsumerWidget {
   const ShowPage({super.key});
@@ -19,7 +19,7 @@ class _ShowPageState extends ConsumerState<ShowPage> {
   @override
   void didChangeDependencies() {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
-    Wakelock.enable();
+    WakelockPlus.enable();
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
     ]);
@@ -33,7 +33,7 @@ class _ShowPageState extends ConsumerState<ShowPage> {
   }
 
   void cleanUp() {
-    ScreenBrightness().resetScreenBrightness();
+    ScreenBrightness().resetApplicationScreenBrightness();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
@@ -41,7 +41,7 @@ class _ShowPageState extends ConsumerState<ShowPage> {
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
-    Wakelock.disable();
+    WakelockPlus.disable();
   }
 
   late ArtnetState? artnetState;
@@ -68,11 +68,11 @@ class _ShowPageState extends ConsumerState<ShowPage> {
     if (is4Channel) {
       if (lastBrightness == -1 && artnetState?.brightness.value != null) {
         lastBrightness = artnetState?.brightness.value ?? 0;
-        ScreenBrightness().setScreenBrightness(lastBrightness / 255);
+        ScreenBrightness().setApplicationScreenBrightness(lastBrightness / 255);
       } else if (artnetState?.brightness.value != null &&
           lastBrightness != (artnetState!.brightness.value)) {
         lastBrightness = artnetState?.brightness.value ?? 0;
-        ScreenBrightness().setScreenBrightness(lastBrightness / 255);
+        ScreenBrightness().setApplicationScreenBrightness(lastBrightness / 255);
       }
     }
     return Scaffold(
@@ -113,7 +113,7 @@ class _ShowPageState extends ConsumerState<ShowPage> {
               right: 0,
               left: 0,
               child: Card(
-                  shadowColor: Colors.white.withOpacity(0.2),
+                  shadowColor: Colors.white.withValues(alpha: 0.2),
                   elevation: 10,
                   child: Padding(
                     padding: const EdgeInsets.all(8.0),
