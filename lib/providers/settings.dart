@@ -16,6 +16,8 @@ enum DmxProtocol {
   bool get receivesSacn => this != artnet;
 }
 
+enum SignalLossAction { hold, blackout, fade, colour }
+
 class SettingsState {
   final int dmxStartChannel;
   final int universe;
@@ -26,6 +28,9 @@ class SettingsState {
   final bool useTorchChannel;
   final DmxProtocol protocol;
   final String deviceName;
+  final SignalLossAction signalLossAction;
+  final int signalLossTimeout;
+  final int signalLossColor;
 
   static const defaultDeviceName = 'ChromaPulse';
 
@@ -43,6 +48,9 @@ class SettingsState {
     this.useTorchChannel = false,
     this.protocol = DmxProtocol.artnet,
     this.deviceName = defaultDeviceName,
+    this.signalLossAction = SignalLossAction.hold,
+    this.signalLossTimeout = 4,
+    this.signalLossColor = 0xFFFFFF,
   });
 
   /// Number of consecutive DMX channels this device listens to.
@@ -56,6 +64,10 @@ class SettingsState {
   bool get fitsUniverse =>
       dmxStartChannel >= 1 && dmxStartChannel + channelCount - 1 <= 512;
 
+  bool isSignalLost(DateTime? lastPacket, DateTime now) =>
+      lastPacket == null ||
+      now.difference(lastPacket) >= Duration(seconds: signalLossTimeout);
+
   SettingsState copyWith({
     int? dmxStartChannel,
     int? universe,
@@ -66,6 +78,9 @@ class SettingsState {
     bool? useTorchChannel,
     DmxProtocol? protocol,
     String? deviceName,
+    SignalLossAction? signalLossAction,
+    int? signalLossTimeout,
+    int? signalLossColor,
   }) {
     return SettingsState(
       dmxStartChannel: dmxStartChannel ?? this.dmxStartChannel,
@@ -77,6 +92,9 @@ class SettingsState {
       useTorchChannel: useTorchChannel ?? this.useTorchChannel,
       protocol: protocol ?? this.protocol,
       deviceName: deviceName ?? this.deviceName,
+      signalLossAction: signalLossAction ?? this.signalLossAction,
+      signalLossTimeout: signalLossTimeout ?? this.signalLossTimeout,
+      signalLossColor: signalLossColor ?? this.signalLossColor,
     );
   }
 
@@ -91,6 +109,9 @@ class SettingsState {
       'useTorchChannel': useTorchChannel,
       'protocol': protocol.name,
       'deviceName': deviceName,
+      'signalLossAction': signalLossAction.name,
+      'signalLossTimeout': signalLossTimeout,
+      'signalLossColor': signalLossColor,
     };
   }
 
@@ -106,6 +127,11 @@ class SettingsState {
       protocol:
           DmxProtocol.values.asNameMap()[map['protocol']] ?? DmxProtocol.artnet,
       deviceName: map['deviceName'] ?? defaultDeviceName,
+      signalLossAction:
+          SignalLossAction.values.asNameMap()[map['signalLossAction']] ??
+          SignalLossAction.hold,
+      signalLossTimeout: (map['signalLossTimeout']?.toInt() ?? 4).clamp(1, 60),
+      signalLossColor: (map['signalLossColor']?.toInt() ?? 0xFFFFFF) & 0xFFFFFF,
     );
   }
 
@@ -127,7 +153,7 @@ class SettingsState {
 
   @override
   String toString() {
-    return 'SettingsState(dmxStartChannel: $dmxStartChannel, universe: $universe, allowBroadcast: $allowBroadcast, controllerIpAddress: $controllerIpAddress, controllerPort: $controllerPort, use4Channels: $use4Channels, useTorchChannel: $useTorchChannel, protocol: $protocol, deviceName: $deviceName)';
+    return 'SettingsState(dmxStartChannel: $dmxStartChannel, universe: $universe, allowBroadcast: $allowBroadcast, controllerIpAddress: $controllerIpAddress, controllerPort: $controllerPort, use4Channels: $use4Channels, useTorchChannel: $useTorchChannel, protocol: $protocol, deviceName: $deviceName, signalLossAction: $signalLossAction, signalLossTimeout: $signalLossTimeout, signalLossColor: $signalLossColor)';
   }
 
   @override
@@ -143,7 +169,10 @@ class SettingsState {
         other.use4Channels == use4Channels &&
         other.useTorchChannel == useTorchChannel &&
         other.protocol == protocol &&
-        other.deviceName == deviceName;
+        other.deviceName == deviceName &&
+        other.signalLossAction == signalLossAction &&
+        other.signalLossTimeout == signalLossTimeout &&
+        other.signalLossColor == signalLossColor;
   }
 
   @override
@@ -156,7 +185,10 @@ class SettingsState {
         use4Channels.hashCode ^
         useTorchChannel.hashCode ^
         protocol.hashCode ^
-        deviceName.hashCode;
+        deviceName.hashCode ^
+        signalLossAction.hashCode ^
+        signalLossTimeout.hashCode ^
+        signalLossColor.hashCode;
   }
 }
 
@@ -202,6 +234,15 @@ class SettingsProvider extends Notifier<SettingsState> {
 
   void setDeviceName(String value) =>
       _update(state.copyWith(deviceName: value));
+
+  void setSignalLossAction(SignalLossAction value) =>
+      _update(state.copyWith(signalLossAction: value));
+
+  void setSignalLossTimeout(int value) =>
+      _update(state.copyWith(signalLossTimeout: value));
+
+  void setSignalLossColor(int value) =>
+      _update(state.copyWith(signalLossColor: value));
 
   void reset() => _update(SettingsState());
 

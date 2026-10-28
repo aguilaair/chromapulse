@@ -2,6 +2,7 @@ import 'package:chromapulse/molecules/config/about.dart';
 import 'package:chromapulse/molecules/config/controller.dart';
 import 'package:chromapulse/molecules/config/device.dart';
 import 'package:chromapulse/molecules/config/network.dart';
+import 'package:chromapulse/molecules/config/signal_loss.dart';
 import 'package:chromapulse/molecules/export_dialog.dart';
 import 'package:chromapulse/show.dart';
 import 'package:flutter/cupertino.dart';
@@ -67,6 +68,7 @@ class _ConfiguationPageState extends ConsumerState<ConfiguationPage> {
               delegate: SliverChildListDelegate.fixed([
             NetworkConfigTile(),
             DeviceConfigurationTile(),
+            SignalLossConfigTile(),
             ControllerConfigurationTile(),
             AboutConfigurationTile(),
             SizedBox(height: 100),

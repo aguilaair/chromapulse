@@ -50,4 +50,21 @@ void main() {
     await send(InternetAddress.loopbackIPv4, e131(universe: 2));
     expect(container.read(artnetStateProvider).lastValidPacketTime, null);
   });
+
+  test('sACN mode flags the stream as terminated by its last source', () async {
+    final container = await receiver(DmxProtocol.sacn);
+    await send(InternetAddress.loopbackIPv4, e131(universe: 2));
+    expect(container.read(artnetStateProvider).streamTerminated, false);
+    await send(InternetAddress.loopbackIPv4, e131(universe: 2, options: 0x40));
+    expect(container.read(artnetStateProvider).streamTerminated, true);
+    await send(InternetAddress.loopbackIPv4, e131(universe: 2));
+    expect(container.read(artnetStateProvider).streamTerminated, false);
+  });
+
+  test('Both mode leaves a terminated sACN stream to the timeout', () async {
+    final container = await receiver(DmxProtocol.both);
+    await send(InternetAddress.loopbackIPv4, e131(universe: 2));
+    await send(InternetAddress.loopbackIPv4, e131(universe: 2, options: 0x40));
+    expect(container.read(artnetStateProvider).streamTerminated, false);
+  });
 }

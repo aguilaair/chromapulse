@@ -74,6 +74,8 @@ class SacnSourceArbiter {
 
   final _sources = <String, ({int priority, DateTime lastSeen})>{};
 
+  bool get hasSources => _sources.isNotEmpty;
+
   bool accept(SacnPacket packet, DateTime now) {
     _sources.removeWhere((_, s) => now.difference(s.lastSeen) > sourceTimeout);
     if (packet.streamTerminated) {

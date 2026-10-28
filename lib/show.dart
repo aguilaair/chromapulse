@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:chromapulse/providers/artnet.dart';
 import 'package:chromapulse/providers/providers.dart';
+import 'package:chromapulse/providers/settings.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -19,11 +22,40 @@ class _ShowPageState extends ConsumerState<ShowPage> {
   bool _torchAvailable = false;
   bool _torchOn = false;
   Future<void> _torchQueue = Future.value();
+  bool _signalLost = false;
+  Timer? _signalTimer;
 
   @override
   void initState() {
     super.initState();
     _checkTorch();
+    _signalTimer = Timer.periodic(
+      const Duration(milliseconds: 250),
+      (_) => _checkSignal(),
+    );
+  }
+
+  void _checkSignal() {
+    if (!mounted) return;
+    final settings = ref.read(settingsStateProvider);
+    final artnet = ref.read(artnetStateProvider);
+    final lost =
+        artnet.streamTerminated ||
+        settings.isSignalLost(artnet.lastValidPacketTime, DateTime.now());
+    if (lost == _signalLost) return;
+    setState(() {
+      _signalLost = lost;
+      if (settings.signalLossAction == SignalLossAction.hold) return;
+      if (lost) {
+        _setTorch(false);
+      } else if (settings.useTorchChannel) {
+        // The packet's channel values are written just after its timestamp.
+        scheduleMicrotask(() {
+          final torch = ref.read(artnetStateProvider).torch.value;
+          if (mounted && torch >= 0) setState(() => _setTorch(torch >= 128));
+        });
+      }
+    });
   }
 
   Future<void> _checkTorch() async {
@@ -62,6 +94,7 @@ class _ShowPageState extends ConsumerState<ShowPage> {
 
   @override
   void dispose() {
+    _signalTimer?.cancel();
     cleanUp();
     super.dispose();
   }
@@ -99,6 +132,12 @@ class _ShowPageState extends ConsumerState<ShowPage> {
         setState(() => _setTorch(value >= 128));
       }
     });
+    ref.listen(
+      artnetStateProvider.select(
+        (s) => (s.lastValidPacketTime, s.streamTerminated),
+      ),
+      (_, _) => _checkSignal(),
+    );
     late String packetTimeAgo;
     Duration? packetTimeDifference;
     if (artnetState?.lastValidPacketTime != null) {
@@ -112,6 +151,13 @@ class _ShowPageState extends ConsumerState<ShowPage> {
     } else {
       packetTimeAgo = "Never";
     }
+
+    final liveColor = Color.fromARGB(
+      255,
+      artnetState?.red.value ?? 0,
+      artnetState?.green.value ?? 0,
+      artnetState?.blue.value ?? 0,
+    );
 
     if (is4Channel) {
       if (lastBrightness == -1 && artnetState?.brightness.value != null) {
@@ -134,15 +180,24 @@ class _ShowPageState extends ConsumerState<ShowPage> {
         child: Stack(
           children: [
             Positioned(
-              child: Container(
+              child: AnimatedContainer(
                 width: double.infinity,
                 height: double.infinity,
-                color: Color.fromARGB(
-                  255,
-                  artnetState?.red.value ?? 0,
-                  artnetState?.green.value ?? 0,
-                  artnetState?.blue.value ?? 0,
-                ),
+                duration:
+                    _signalLost &&
+                        settings.signalLossAction == SignalLossAction.fade
+                    ? const Duration(seconds: 2)
+                    : Duration.zero,
+                color: !_signalLost
+                    ? liveColor
+                    : switch (settings.signalLossAction) {
+                        SignalLossAction.hold => liveColor,
+                        SignalLossAction.blackout ||
+                        SignalLossAction.fade => Colors.black,
+                        SignalLossAction.colour => Color(
+                          0xFF000000 | settings.signalLossColor,
+                        ),
+                      },
               ),
             ),
             if ((packetTimeDifference?.inSeconds ?? 11) > 10)
@@ -184,7 +239,10 @@ class _ShowPageState extends ConsumerState<ShowPage> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text("Last Packet: $packetTimeAgo"),
+                              Text(
+                                "Last Packet: $packetTimeAgo"
+                                "${_signalLost ? " (signal lost)" : ""}",
+                              ),
                               Row(
                                 children: [
                                   Text(
