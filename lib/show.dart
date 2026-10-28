@@ -39,10 +39,9 @@ class _ShowPageState extends ConsumerState<ShowPage> {
     if (!mounted) return;
     final settings = ref.read(settingsStateProvider);
     final artnet = ref.read(artnetStateProvider);
-    final lost = settings.isSignalLost(
-      artnet.lastValidPacketTime,
-      DateTime.now(),
-    );
+    final lost =
+        artnet.streamTerminated ||
+        settings.isSignalLost(artnet.lastValidPacketTime, DateTime.now());
     if (lost == _signalLost) return;
     setState(() {
       _signalLost = lost;
@@ -134,7 +133,9 @@ class _ShowPageState extends ConsumerState<ShowPage> {
       }
     });
     ref.listen(
-      artnetStateProvider.select((s) => s.lastValidPacketTime),
+      artnetStateProvider.select(
+        (s) => (s.lastValidPacketTime, s.streamTerminated),
+      ),
       (_, _) => _checkSignal(),
     );
     late String packetTimeAgo;

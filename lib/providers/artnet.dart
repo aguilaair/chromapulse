@@ -33,6 +33,7 @@ class ArtnetState {
   final bool isBroadcasting;
   final bool isReady;
   final DateTime? lastValidPacketTime;
+  final bool streamTerminated;
 
   ArtnetState({
     required this.ip,
@@ -45,6 +46,7 @@ class ArtnetState {
     required this.isBroadcasting,
     this.lastValidPacketTime,
     this.isReady = false,
+    this.streamTerminated = false,
   });
 
   ArtnetState copyWith({
@@ -58,6 +60,7 @@ class ArtnetState {
     bool? isBroadcasting,
     bool? isReady,
     DateTime? lastValidPacketTime,
+    bool? streamTerminated,
   }) {
     return ArtnetState(
       ip: ip ?? this.ip,
@@ -70,6 +73,7 @@ class ArtnetState {
       isBroadcasting: isBroadcasting ?? this.isBroadcasting,
       isReady: isReady ?? this.isReady,
       lastValidPacketTime: lastValidPacketTime ?? this.lastValidPacketTime,
+      streamTerminated: streamTerminated ?? this.streamTerminated,
     );
   }
 }
@@ -189,7 +193,11 @@ class ArtnetProvider extends Notifier<ArtnetState> {
     if (data.data.length < 10 || !ArtnetCheckPacket(data.data)) return;
 
     final settings = ref.read(settingsStateProvider);
-    state = state.copyWith(isReady: true, lastValidPacketTime: DateTime.now());
+    state = state.copyWith(
+      isReady: true,
+      lastValidPacketTime: DateTime.now(),
+      streamTerminated: false,
+    );
 
     // Parse the packet
     final opCode = ArtnetGetOpCode(data.data);
@@ -215,9 +223,21 @@ class ArtnetProvider extends Notifier<ArtnetState> {
     if (packet.universe != settings.universe) return;
 
     final now = DateTime.now();
-    if (!_sacnArbiter.accept(packet, now)) return;
+    if (!_sacnArbiter.accept(packet, now)) {
+      // In Both mode Art-Net may still be live, so leave it to the timeout
+      if (packet.streamTerminated &&
+          !_sacnArbiter.hasSources &&
+          settings.protocol == DmxProtocol.sacn) {
+        state = state.copyWith(streamTerminated: true);
+      }
+      return;
+    }
 
-    state = state.copyWith(isReady: true, lastValidPacketTime: now);
+    state = state.copyWith(
+      isReady: true,
+      lastValidPacketTime: now,
+      streamTerminated: false,
+    );
     _applyDmx(packet.dmx, settings);
   }
 
