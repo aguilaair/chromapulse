@@ -29,6 +29,10 @@ class SettingsState {
   /// Offset of the torch channel from [dmxStartChannel].
   int get torchChannelOffset => use4Channels ? 4 : 3;
 
+  /// Whether every channel from [dmxStartChannel] fits inside one universe.
+  bool get fitsUniverse =>
+      dmxStartChannel >= 1 && dmxStartChannel + channelCount - 1 <= 512;
+
   SettingsState copyWith({
     int? dmxStartChannel,
     int? universe,

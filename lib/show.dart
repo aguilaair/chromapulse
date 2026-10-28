@@ -45,7 +45,8 @@ class _ShowPageState extends ConsumerState<ShowPage> {
       try {
         on ? await TorchLight.enableTorch() : await TorchLight.disableTorch();
       } catch (e) {
-        // Camera busy or torch unavailable, nothing useful to do mid-show
+        // Camera busy or torch unavailable, retry on the next DMX change
+        if (_torchOn == on && mounted) setState(() => _torchOn = !on);
       }
     });
   }

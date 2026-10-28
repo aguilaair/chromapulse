@@ -131,7 +131,8 @@ class ArtnetProvider extends Notifier<ArtnetState> {
   }
 
   void handleData(Datagram data) {
-    if (!ArtnetCheckPacket(data.data)) return;
+    // ArtnetCheckPacket reads the 8-byte ID and the opcode without bounds checks
+    if (data.data.length < 10 || !ArtnetCheckPacket(data.data)) return;
 
     final settings = ref.read(settingsStateProvider);
     state = state.copyWith(isReady: true, lastValidPacketTime: DateTime.now());
@@ -152,7 +153,7 @@ class ArtnetProvider extends Notifier<ArtnetState> {
         final index = settings.dmxStartChannel - 1 + offset;
         return DmxChannel(
           channel: settings.dmxStartChannel + offset,
-          value: index < dmx.dmx.length ? dmx.dmx[index] : 0,
+          value: index >= 0 && index < dmx.dmx.length ? dmx.dmx[index] : 0,
           universe: settings.universe,
         );
       }

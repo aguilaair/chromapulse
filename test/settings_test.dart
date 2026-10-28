@@ -21,6 +21,16 @@ void main() {
       expect(SettingsState(use4Channels: false).torchChannelOffset, 3);
     });
 
+    test('fitsUniverse checks the whole channel range', () {
+      expect(SettingsState(dmxStartChannel: 509).fitsUniverse, true);
+      expect(
+        SettingsState(dmxStartChannel: 509, useTorchChannel: true).fitsUniverse,
+        false,
+      );
+      expect(SettingsState(dmxStartChannel: 0).fitsUniverse, false);
+      expect(SettingsState(dmxStartChannel: -5).fitsUniverse, false);
+    });
+
     test('copyWith keeps unrelated fields', () {
       final settings = SettingsState(
         use4Channels: false,

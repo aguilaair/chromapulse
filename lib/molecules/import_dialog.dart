@@ -193,6 +193,9 @@ class _ImportConfigDialogState extends ConsumerState<ImportConfigDialog> {
     final decoded = base64Decode(data);
     final json = String.fromCharCodes(decoded);
     final settings = SettingsState.fromJson(json);
+    if (!settings.fitsUniverse) {
+      throw Exception("Invalid DMX channels");
+    }
     return settings;
   }
 }

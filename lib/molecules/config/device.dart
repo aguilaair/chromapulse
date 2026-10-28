@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 import '../../providers/providers.dart';
+import '../../providers/settings.dart';
 import '../setting_edit_dialog.dart';
 
 class DeviceConfigurationTile extends StatefulHookConsumerWidget {
@@ -15,6 +16,19 @@ class DeviceConfigurationTile extends StatefulHookConsumerWidget {
 
 class _DeviceConfigurationTileState
     extends ConsumerState<DeviceConfigurationTile> {
+  bool _fits(SettingsState next) {
+    if (next.fitsUniverse) return true;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          "Not enough channels left in the universe, set the start "
+          "channel to ${512 - next.channelCount + 1} or lower first",
+        ),
+      ),
+    );
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsStateProvider);
@@ -31,6 +45,7 @@ class _DeviceConfigurationTileState
           trailing: Switch(
             value: settings.use4Channels,
             onChanged: (value) {
+              if (!_fits(settings.copyWith(use4Channels: value))) return;
               ref.read(settingsStateProvider.notifier).setUse4Channels(value);
             },
           ),
@@ -45,6 +60,7 @@ class _DeviceConfigurationTileState
           trailing: Switch(
             value: settings.useTorchChannel,
             onChanged: (value) {
+              if (!_fits(settings.copyWith(useTorchChannel: value))) return;
               ref
                   .read(settingsStateProvider.notifier)
                   .setUseTorchChannel(value);

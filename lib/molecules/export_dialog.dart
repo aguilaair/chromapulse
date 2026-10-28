@@ -99,14 +99,14 @@ class _ExportConfigDialogState extends ConsumerState<ExportConfigDialog> {
                   controller: channelController,
                   keyboardType: TextInputType.number,
                   onChanged: (value) {
-                    if (value.isEmpty) {
+                    final channel = int.tryParse(value);
+                    if (channel == null) {
                       return;
                     }
-                    setState(() {
-                      qrData = qrData.copyWith(
-                        dmxStartChannel: int.parse(value),
-                      );
-                    });
+                    final next = qrData.copyWith(dmxStartChannel: channel);
+                    if (next.fitsUniverse) {
+                      setState(() => qrData = next);
+                    }
                   },
                 ),
               ),
