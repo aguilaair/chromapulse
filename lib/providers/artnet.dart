@@ -2,7 +2,10 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:chromapulse/providers/providers.dart';
+import 'package:chromapulse/providers/sacn.dart';
+import 'package:chromapulse/providers/settings.dart';
 import 'package:d_artnet_4/d_artnet_4.dart';
+import 'package:flutter/services.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 class DmxChannel {
@@ -72,17 +75,36 @@ class ArtnetState {
 }
 
 class ArtnetProvider extends Notifier<ArtnetState> {
+  static const _multicastChannel = MethodChannel(
+    'dev.eduardom.chromapulse/multicast',
+  );
+
   RawDatagramSocket? _udp;
+  RawDatagramSocket? _sacnUdp;
+  var _sacnArbiter = SacnSourceArbiter();
+
+  // Bumped on dispose so binds still in flight from an earlier build bail out
+  var _generation = 0;
 
   @override
   ArtnetState build() {
-    // Rebind the socket whenever the port changes. Watching also keeps the
+    // Rebind the sockets whenever these change. Watching also keeps the
     // settings provider alive while we read it for every packet.
-    final port = ref.watch(
-      settingsStateProvider.select((s) => s.controllerPort),
+    final (port, protocol, universe) = ref.watch(
+      settingsStateProvider.select(
+        (s) => (s.controllerPort, s.protocol, s.universe),
+      ),
     );
-    ref.onDispose(() => _udp?.close());
-    _init(port);
+    ref.onDispose(() {
+      _generation++;
+      _udp?.close();
+      _sacnUdp?.close();
+      _udp = _sacnUdp = null;
+      if (protocol.receivesSacn) _setMulticastLock(false);
+    });
+    _sacnArbiter = SacnSourceArbiter();
+    if (protocol.receivesArtnet) _bindArtnet(port);
+    if (protocol.receivesSacn) _bindSacn(universe);
 
     return ArtnetState(
       ip: '',
@@ -96,34 +118,66 @@ class ArtnetProvider extends Notifier<ArtnetState> {
     );
   }
 
-  Future<void> _init(int port) async {
-    final settings = ref.read(settingsStateProvider);
-
-    // Subscribe to UDP packets
+  Future<RawDatagramSocket?> _bind(
+    int port,
+    int generation,
+    void Function(Datagram) onPacket,
+  ) async {
     final RawDatagramSocket udp;
     try {
       udp = await RawDatagramSocket.bind(InternetAddress.anyIPv4, port);
     } catch (e) {
-      return;
+      return null;
     }
-    if (!ref.mounted) {
+    if (generation != _generation) {
       udp.close();
-      return;
+      return null;
     }
-    _udp = udp;
 
     udp.listen((event) {
       if (event == RawSocketEvent.read) {
         final packet = udp.receive();
-        if (packet != null) handleData(packet);
+        if (packet != null) onPacket(packet);
       }
     });
+    state = state.copyWith(isReady: true);
+    return udp;
+  }
 
+  Future<void> _bindArtnet(int port) async {
+    final udp = await _bind(port, _generation, handleData);
+    if (udp == null) return;
+    _udp = udp;
     state = state.copyWith(
-      ip: settings.controllerIpAddress,
+      ip: ref.read(settingsStateProvider).controllerIpAddress,
       port: port,
-      isReady: true,
     );
+  }
+
+  Future<void> _bindSacn(int universe) async {
+    final generation = _generation;
+    // Android drops multicast on Wi-Fi unless an app holds a MulticastLock
+    await _setMulticastLock(true);
+    if (generation != _generation) return;
+    final udp = await _bind(sacnPort, generation, _handleSacn);
+    if (udp == null) return;
+    _sacnUdp = udp;
+    try {
+      udp.joinMulticast(sacnMulticastAddress(universe));
+    } on SocketException {
+      // No multicast route; unicast sACN still arrives
+    }
+  }
+
+  Future<void> _setMulticastLock(bool held) async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _multicastChannel.invokeMethod(held ? 'acquire' : 'release');
+    } on MissingPluginException {
+      return;
+    } on PlatformException {
+      return;
+    }
   }
 
   void setBroadcasting(bool value) {
@@ -144,30 +198,49 @@ class ArtnetProvider extends Notifier<ArtnetState> {
     } else if (opCode == ArtnetDataPacket.opCode) {
       final dmx = ArtnetDataPacket(packet: data.data);
 
+      // Art-Net counts universes from 0, the settings count from 1
       if (dmx.universe != settings.universe - 1) {
         return;
       }
 
-      // Art-Net allows short frames, treat missing channels as 0
-      DmxChannel channel(int offset) {
-        final index = settings.dmxStartChannel - 1 + offset;
-        return DmxChannel(
-          channel: settings.dmxStartChannel + offset,
-          value: index >= 0 && index < dmx.dmx.length ? dmx.dmx[index] : 0,
-          universe: settings.universe,
-        );
-      }
+      _applyDmx(dmx.dmx, settings);
+    }
+  }
 
-      state = state.copyWith(
-        red: channel(0),
-        green: channel(1),
-        blue: channel(2),
-        brightness: settings.use4Channels ? channel(3) : DmxChannel.unused,
-        torch: settings.useTorchChannel
-            ? channel(settings.torchChannelOffset)
-            : DmxChannel.unused,
+  void _handleSacn(Datagram data) {
+    final packet = SacnPacket.parse(data.data);
+    if (packet == null || packet.preview) return;
+
+    final settings = ref.read(settingsStateProvider);
+    if (packet.universe != settings.universe) return;
+
+    final now = DateTime.now();
+    if (!_sacnArbiter.accept(packet, now)) return;
+
+    state = state.copyWith(isReady: true, lastValidPacketTime: now);
+    _applyDmx(packet.dmx, settings);
+  }
+
+  void _applyDmx(List<int> dmx, SettingsState settings) {
+    // Both protocols allow short frames, treat missing channels as 0
+    DmxChannel channel(int offset) {
+      final index = settings.dmxStartChannel - 1 + offset;
+      return DmxChannel(
+        channel: settings.dmxStartChannel + offset,
+        value: index >= 0 && index < dmx.length ? dmx[index] : 0,
+        universe: settings.universe,
       );
     }
+
+    state = state.copyWith(
+      red: channel(0),
+      green: channel(1),
+      blue: channel(2),
+      brightness: settings.use4Channels ? channel(3) : DmxChannel.unused,
+      torch: settings.useTorchChannel
+          ? channel(settings.torchChannelOffset)
+          : DmxChannel.unused,
+    );
   }
 
   void sendArtPollReply() {

@@ -61,5 +61,23 @@ void main() {
       expect(settings.useTorchChannel, false);
       expect(settings.dmxStartChannel, 5);
     });
+
+    test('configs exported before the protocol setting import as Art-Net', () {
+      final settings = SettingsState.fromJson(
+        '{"dmxStartChannel":5,"universe":1,"allowBroadcast":true,'
+        '"controllerIpAddress":"","controllerPort":6454,"use4Channels":true,'
+        '"useTorchChannel":true}',
+      );
+      expect(settings.protocol, DmxProtocol.artnet);
+      expect(settings.useTorchChannel, true);
+    });
+
+    test('protocol survives the JSON round trip', () {
+      final settings = SettingsState(protocol: DmxProtocol.sacn);
+      expect(
+        SettingsState.fromJson(settings.toJson()).protocol,
+        DmxProtocol.sacn,
+      );
+    });
   });
 }
