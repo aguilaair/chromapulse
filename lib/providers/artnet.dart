@@ -22,12 +22,22 @@ class DmxChannel {
   static final unused = DmxChannel(channel: -1, value: -1, universe: -1);
 }
 
+class RgbZone {
+  final int red;
+  final int green;
+  final int blue;
+
+  const RgbZone(this.red, this.green, this.blue);
+
+  static const off = RgbZone(0, 0, 0);
+
+  Color get color => Color.fromARGB(255, red, green, blue);
+}
+
 class ArtnetState {
   final String ip;
   final int port;
-  final DmxChannel red;
-  final DmxChannel green;
-  final DmxChannel blue;
+  final List<RgbZone> zones;
   final DmxChannel brightness;
   final DmxChannel torch;
   final DmxChannel strobe;
@@ -39,9 +49,7 @@ class ArtnetState {
   ArtnetState({
     required this.ip,
     required this.port,
-    required this.red,
-    required this.green,
-    required this.blue,
+    List<RgbZone>? zones,
     required this.brightness,
     required this.torch,
     DmxChannel? strobe,
@@ -49,14 +57,13 @@ class ArtnetState {
     this.lastValidPacketTime,
     this.isReady = false,
     this.streamTerminated = false,
-  }) : strobe = strobe ?? DmxChannel.unused;
+  }) : zones = zones ?? const [RgbZone.off],
+       strobe = strobe ?? DmxChannel.unused;
 
   ArtnetState copyWith({
     String? ip,
     int? port,
-    DmxChannel? red,
-    DmxChannel? green,
-    DmxChannel? blue,
+    List<RgbZone>? zones,
     DmxChannel? brightness,
     DmxChannel? torch,
     DmxChannel? strobe,
@@ -68,9 +75,7 @@ class ArtnetState {
     return ArtnetState(
       ip: ip ?? this.ip,
       port: port ?? this.port,
-      red: red ?? this.red,
-      green: green ?? this.green,
-      blue: blue ?? this.blue,
+      zones: zones ?? this.zones,
       brightness: brightness ?? this.brightness,
       torch: torch ?? this.torch,
       strobe: strobe ?? this.strobe,
@@ -117,9 +122,7 @@ class ArtnetProvider extends Notifier<ArtnetState> {
     return ArtnetState(
       ip: '',
       port: 0,
-      red: DmxChannel(channel: 0, value: 0, universe: 0),
-      green: DmxChannel(channel: 0, value: 0, universe: 0),
-      blue: DmxChannel(channel: 0, value: 0, universe: 0),
+      zones: const [RgbZone.off],
       brightness: DmxChannel(channel: 0, value: 255, universe: 0),
       torch: DmxChannel(channel: 0, value: 0, universe: 0),
       strobe: DmxChannel(channel: 0, value: 0, universe: 0),
@@ -248,20 +251,25 @@ class ArtnetProvider extends Notifier<ArtnetState> {
 
   void _applyDmx(List<int> dmx, SettingsState settings) {
     // Both protocols allow short frames, treat missing channels as 0
-    DmxChannel channel(int offset) {
+    int value(int offset) {
       final index = settings.dmxStartChannel - 1 + offset;
-      return DmxChannel(
-        channel: settings.dmxStartChannel + offset,
-        value: index >= 0 && index < dmx.length ? dmx[index] : 0,
-        universe: settings.universe,
-      );
+      return index >= 0 && index < dmx.length ? dmx[index] : 0;
     }
 
+    DmxChannel channel(int offset) => DmxChannel(
+      channel: settings.dmxStartChannel + offset,
+      value: value(offset),
+      universe: settings.universe,
+    );
+
     state = state.copyWith(
-      red: channel(0),
-      green: channel(1),
-      blue: channel(2),
-      brightness: settings.use4Channels ? channel(3) : DmxChannel.unused,
+      zones: [
+        for (var z = 0; z < settings.zoneCount; z++)
+          RgbZone(value(3 * z), value(3 * z + 1), value(3 * z + 2)),
+      ],
+      brightness: settings.use4Channels
+          ? channel(settings.brightnessChannelOffset)
+          : DmxChannel.unused,
       torch: settings.useTorchChannel
           ? channel(settings.torchChannelOffset)
           : DmxChannel.unused,

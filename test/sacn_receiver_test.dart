@@ -12,6 +12,7 @@ import 'sacn_test.dart' show e131;
 Future<ProviderContainer> receiver(
   DmxProtocol protocol, {
   bool useStrobeChannel = false,
+  int zoneCount = 1,
 }) async {
   final box = await Hive.openBox(SettingsProvider.key);
   await box.put(
@@ -20,6 +21,7 @@ Future<ProviderContainer> receiver(
       protocol: protocol,
       universe: 2,
       useStrobeChannel: useStrobeChannel,
+      zoneCount: zoneCount,
     ).toJson(),
   );
   final container = ProviderContainer();
@@ -45,11 +47,27 @@ void main() {
     final container = await receiver(DmxProtocol.sacn);
     await send(InternetAddress.loopbackIPv4, e131(universe: 2));
     await send(InternetAddress.loopbackIPv4, e131(universe: 1, dmx: [9, 9, 9]));
+    final zone = container.read(artnetStateProvider).zones.single;
+    expect([zone.red, zone.green, zone.blue], [255, 128, 0]);
+  });
+
+  test('each zone reads its own RGB channels', () async {
+    final container = await receiver(DmxProtocol.sacn, zoneCount: 2);
+    await send(
+      InternetAddress.loopbackIPv4,
+      e131(universe: 2, dmx: [255, 0, 0, 0, 0, 255, 200]),
+    );
     final state = container.read(artnetStateProvider);
     expect(
-      [state.red.value, state.green.value, state.blue.value],
-      [255, 128, 0],
+      [
+        for (final z in state.zones) [z.red, z.green, z.blue],
+      ],
+      [
+        [255, 0, 0],
+        [0, 0, 255],
+      ],
     );
+    expect(state.brightness.value, 200);
   });
 
   test('sACN mode reads the strobe channel', () async {
