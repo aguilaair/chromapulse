@@ -63,6 +63,15 @@ class _ShowPageState extends ConsumerState<ShowPage>
         artnet.streamTerminated ||
         settings.isSignalLost(artnet.lastValidPacketTime, DateTime.now());
     if (lost == _signalLost) return;
+    if (!lost) {
+      // Recovery is instant: jump to the packet's look instead of fading in
+      // from whatever was showing before the loss.
+      scheduleMicrotask(() {
+        if (mounted) {
+          setState(() => _snap(_levels(ref.read(artnetStateProvider))));
+        }
+      });
+    }
     setState(() {
       _signalLost = lost;
       if (settings.signalLossAction == SignalLossAction.hold) return;
@@ -85,15 +94,19 @@ class _ShowPageState extends ConsumerState<ShowPage>
     if (target == _to) return;
     final fadeTimeMs = _settings.fadeTimeMs;
     if (fadeTimeMs == 0) {
-      _fade.stop();
-      _from = _to = target;
-      _pushBrightness(force: true);
+      _snap(target);
       return;
     }
     _from = LightLevels.lerp(_from, _to, _fade.value);
     _to = target;
     _fade.duration = Duration(milliseconds: fadeTimeMs);
     _fade.forward(from: 0);
+  }
+
+  void _snap(LightLevels target) {
+    _fade.stop();
+    _from = _to = target;
+    _pushBrightness(force: true);
   }
 
   /// The platform call is slow, so fades update it at most every
