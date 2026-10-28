@@ -22,11 +22,11 @@ class NetworkState {
   });
 }
 
-class NetworkProvider extends StateNotifier<NetworkState> {
-  final Ref ref;
-
-  NetworkProvider(this.ref) : super(NetworkState()) {
+class NetworkProvider extends Notifier<NetworkState> {
+  @override
+  NetworkState build() {
     _init();
+    return NetworkState();
   }
 
   Future<void> _init() async {
@@ -38,6 +38,7 @@ class NetworkProvider extends StateNotifier<NetworkState> {
     final subnet = await networkInfo.getWifiIP();
     final gateway = await networkInfo.getWifiIP();
 
+    if (!ref.mounted) return;
     state = NetworkState(
       ipAddress: ipAddress,
       macAddress: macAddress,

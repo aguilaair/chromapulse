@@ -1,7 +1,8 @@
 #!/bin/sh
+set -e
 
-# The default execution directory of this script is the ci_scripts directory.
-cd $CI_WORKSPACE # change working directory to the root of your cloned repo.
+# CI_WORKSPACE is the parent of the clone, the repository lives here.
+cd "$CI_PRIMARY_REPOSITORY_PATH"
 
 # Install Flutter using git.
 git clone https://github.com/flutter/flutter.git --depth 1 -b stable $HOME/flutter
@@ -12,6 +13,9 @@ flutter precache --ios
 
 # Install Flutter dependencies.
 flutter pub get
+
+# Generate the Xcode config and the Swift package for Flutter plugins.
+flutter build ios --config-only --release
 
 # Install CocoaPods using Homebrew.
 HOMEBREW_NO_AUTO_UPDATE=1 # disable homebrew's automatic updates.
