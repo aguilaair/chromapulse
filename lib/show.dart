@@ -29,19 +29,23 @@ class _ShowPageState extends ConsumerState<ShowPage>
   bool _signalLost = false;
   Timer? _signalTimer;
 
-  late final AnimationController _fade = AnimationController(vsync: this)
-    ..addListener(() => _pushBrightness(force: _fade.isCompleted));
+  late final SettingsState _settings;
+  late final AnimationController _fade;
   late LightLevels _from;
   late LightLevels _to;
   double? _sentBrightness;
   DateTime _sentAt = DateTime(0);
 
-  LightLevels get _shown => LightLevels.lerp(_from, _to, _fade.value);
+  LightLevels get _shown =>
+      LightLevels.lerp(_from, _to, _fade.value).output(_settings);
 
   @override
   void initState() {
     super.initState();
     _checkTorch();
+    _settings = ref.read(settingsStateProvider);
+    _fade = AnimationController(vsync: this)
+      ..addListener(() => _pushBrightness(force: _fade.isCompleted));
     _from = _to = _levels(ref.read(artnetStateProvider));
     _pushBrightness(force: true);
     ref.listenManual(artnetStateProvider, (_, dmx) => _fadeTo(_levels(dmx)));
@@ -75,18 +79,18 @@ class _ShowPageState extends ConsumerState<ShowPage>
   }
 
   LightLevels _levels(ArtnetState dmx) =>
-      LightLevels.fromDmx(dmx, ref.read(settingsStateProvider));
+      LightLevels.fromDmx(dmx, brightness: _settings.use4Channels);
 
   void _fadeTo(LightLevels target) {
     if (target == _to) return;
-    final fadeTimeMs = ref.read(settingsStateProvider).fadeTimeMs;
+    final fadeTimeMs = _settings.fadeTimeMs;
     if (fadeTimeMs == 0) {
       _fade.stop();
       _from = _to = target;
       _pushBrightness(force: true);
       return;
     }
-    _from = _shown;
+    _from = LightLevels.lerp(_from, _to, _fade.value);
     _to = target;
     _fade.duration = Duration(milliseconds: fadeTimeMs);
     _fade.forward(from: 0);
@@ -96,12 +100,7 @@ class _ShowPageState extends ConsumerState<ShowPage>
   /// [_brightnessInterval]; [force] lands the final value.
   void _pushBrightness({bool force = false}) {
     final level = _shown.brightness;
-    if (level == null) return;
-    final sent = _sentBrightness;
-    if (sent != null &&
-        (force ? level == sent : (level - sent).abs() < 1 / 255)) {
-      return;
-    }
+    if (level == null || level == _sentBrightness) return;
     final now = DateTime.now();
     if (!force && now.difference(_sentAt) < _brightnessInterval) return;
     _sentBrightness = level;

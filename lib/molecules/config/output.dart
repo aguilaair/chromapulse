@@ -19,8 +19,10 @@ class OutputConfigurationTile extends HookConsumerWidget {
       children: [
         ListTile(
           title: const Text("Dimmer Curve"),
-          subtitle: const Text(
-            "Square law gives finer control at low brightness.",
+          subtitle: Text(
+            settings.use4Channels || settings.curveRgb
+                ? "Square law gives finer control at low brightness."
+                : "Needs 4-channel mode or Apply Curve to Colour.",
           ),
           trailing: DropdownButton<DimmerCurve>(
             value: settings.dimmerCurve,
@@ -36,7 +38,8 @@ class OutputConfigurationTile extends HookConsumerWidget {
         ListTile(
           title: const Text("Apply Curve to Colour"),
           subtitle: const Text(
-            "Also apply the dimmer curve to the red, green and blue channels.",
+            "Also apply the curve to red, green and blue. "
+            "Mid colours get much darker and mixed colours shift.",
           ),
           trailing: Switch(
             value: settings.curveRgb,

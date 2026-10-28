@@ -28,21 +28,27 @@ void main() {
     });
   });
 
-  group('LightLevels.fromDmx', () {
+  group('LightLevels', () {
     final frame = dmx(r: 255, g: 51, b: 0, brightness: 51);
 
-    test('linear passes DMX through', () {
+    test('fromDmx reads raw levels', () {
       expect(
-        LightLevels.fromDmx(frame, SettingsState()),
+        LightLevels.fromDmx(frame, brightness: true),
         const LightLevels(red: 1, green: 0.2, blue: 0, brightness: 0.2),
       );
+      expect(LightLevels.fromDmx(frame, brightness: false).brightness, null);
+    });
+
+    test('linear output passes levels through', () {
+      final raw = LightLevels.fromDmx(frame, brightness: true);
+      expect(raw.output(SettingsState()), raw);
     });
 
     test('the curve applies to brightness only by default', () {
       final levels = LightLevels.fromDmx(
         frame,
-        SettingsState(dimmerCurve: DimmerCurve.square),
-      );
+        brightness: true,
+      ).output(SettingsState(dimmerCurve: DimmerCurve.square));
       expect(levels.green, 0.2);
       expect(levels.brightness, closeTo(0.04, 1e-9));
     });
@@ -50,18 +56,21 @@ void main() {
     test('curveRgb applies the curve to colour too', () {
       final levels = LightLevels.fromDmx(
         frame,
-        SettingsState(dimmerCurve: DimmerCurve.square, curveRgb: true),
-      );
+        brightness: true,
+      ).output(SettingsState(dimmerCurve: DimmerCurve.square, curveRgb: true));
       expect(levels.red, 1);
       expect(levels.green, closeTo(0.04, 1e-9));
     });
 
-    test('no brightness without the fourth channel', () {
-      final levels = LightLevels.fromDmx(
-        dmx(brightness: -1),
-        SettingsState(use4Channels: false),
-      );
-      expect(levels.brightness, null);
+    test('a square-law fade is a quarter bright at its midpoint', () {
+      final dark = LightLevels.fromDmx(dmx(), brightness: true);
+      final full = LightLevels.fromDmx(dmx(brightness: 255), brightness: true);
+      final mid = LightLevels.lerp(
+        dark,
+        full,
+        0.5,
+      ).output(SettingsState(dimmerCurve: DimmerCurve.square));
+      expect(mid.brightness, 0.25);
     });
   });
 

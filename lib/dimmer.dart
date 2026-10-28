@@ -20,7 +20,8 @@ enum DimmerCurve {
       values.asNameMap()[name] ?? linear;
 }
 
-/// Output levels in 0..1, after the dimmer curve.
+/// Channel levels in 0..1. Fades interpolate raw DMX levels and apply the
+/// curve on the way out, so the curve also shapes the fade.
 /// [brightness] is null when no brightness channel is patched.
 class LightLevels {
   final double red;
@@ -35,18 +36,26 @@ class LightLevels {
     this.brightness,
   });
 
-  factory LightLevels.fromDmx(ArtnetState dmx, SettingsState settings) {
-    final curve = settings.dimmerCurve;
+  factory LightLevels.fromDmx(ArtnetState dmx, {required bool brightness}) {
     double level(DmxChannel channel) => channel.value.clamp(0, 255) / 255;
-    double colour(DmxChannel channel) =>
-        settings.curveRgb ? curve.apply(level(channel)) : level(channel);
     return LightLevels(
-      red: colour(dmx.red),
-      green: colour(dmx.green),
-      blue: colour(dmx.blue),
-      brightness: settings.use4Channels
-          ? curve.apply(level(dmx.brightness))
-          : null,
+      red: level(dmx.red),
+      green: level(dmx.green),
+      blue: level(dmx.blue),
+      brightness: brightness ? level(dmx.brightness) : null,
+    );
+  }
+
+  LightLevels output(SettingsState settings) {
+    final curve = settings.dimmerCurve;
+    double colour(double level) =>
+        settings.curveRgb ? curve.apply(level) : level;
+    final brightness = this.brightness;
+    return LightLevels(
+      red: colour(red),
+      green: colour(green),
+      blue: colour(blue),
+      brightness: brightness == null ? null : curve.apply(brightness),
     );
   }
 

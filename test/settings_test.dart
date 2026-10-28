@@ -45,6 +45,25 @@ void main() {
       expect(updated.controllerPort, 1234);
     });
 
+    test('copyWith sets the output fields', () {
+      final updated = SettingsState(use4Channels: false).copyWith(
+        dimmerCurve: DimmerCurve.square,
+        curveRgb: true,
+        fadeTimeMs: 750,
+      );
+      expect(updated.dimmerCurve, DimmerCurve.square);
+      expect(updated.curveRgb, true);
+      expect(updated.fadeTimeMs, 750);
+      expect(updated.use4Channels, false);
+    });
+
+    test('equality covers the output fields', () {
+      final base = SettingsState();
+      expect(base.copyWith(dimmerCurve: DimmerCurve.square), isNot(base));
+      expect(base.copyWith(curveRgb: true), isNot(base));
+      expect(base.copyWith(fadeTimeMs: 1), isNot(base));
+    });
+
     test('JSON round trip', () {
       final settings = SettingsState(
         dmxStartChannel: 10,
@@ -60,6 +79,9 @@ void main() {
       final decoded = SettingsState.fromJson(settings.toJson());
       expect(decoded, settings);
       expect(decoded.deviceName, 'Stage Left 3');
+      expect(decoded.dimmerCurve, DimmerCurve.square);
+      expect(decoded.curveRgb, true);
+      expect(decoded.fadeTimeMs, 250);
     });
 
     test('device name defaults to ChromaPulse', () {
@@ -234,6 +256,13 @@ void main() {
     test('imported fade times are clamped', () {
       expect(SettingsState.fromMap({'fadeTimeMs': -500}).fadeTimeMs, 0);
       expect(SettingsState.fromMap({'fadeTimeMs': 1e12}).fadeTimeMs, 10000);
+    });
+
+    test('a wrongly typed value rejects the whole config', () {
+      expect(
+        () => SettingsState.fromJson('{"fadeTimeMs":"500"}'),
+        throwsA(isA<TypeError>()),
+      );
     });
 
     test('an unknown dimmer curve falls back to linear', () {
