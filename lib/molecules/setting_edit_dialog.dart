@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
@@ -9,11 +10,15 @@ class SettingEditDialog extends StatefulHookConsumerWidget {
     required this.title,
     required this.onSave,
     required this.initialValue,
+    this.maxLength,
+    this.inputFormatters,
   });
 
   final String title;
   final Function(String) onSave;
   final String initialValue;
+  final int? maxLength;
+  final List<TextInputFormatter>? inputFormatters;
 
   @override
   ConsumerState<ConsumerStatefulWidget> createState() =>
@@ -30,6 +35,8 @@ class _SettingEditDialogState extends ConsumerState<SettingEditDialog> {
       title: Text(widget.title),
       content: TextField(
         controller: controller,
+        maxLength: widget.maxLength,
+        inputFormatters: widget.inputFormatters,
         decoration: InputDecoration(
           border: const OutlineInputBorder(),
           labelText: widget.title,

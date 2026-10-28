@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:chromapulse/providers/settings.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -49,8 +51,56 @@ void main() {
         controllerIpAddress: '10.0.0.1',
         use4Channels: false,
         useTorchChannel: true,
+        deviceName: 'Stage Left 3',
       );
-      expect(SettingsState.fromJson(settings.toJson()), settings);
+      final decoded = SettingsState.fromJson(settings.toJson());
+      expect(decoded, settings);
+      expect(decoded.deviceName, 'Stage Left 3');
+    });
+
+    test('device name defaults to ChromaPulse', () {
+      expect(SettingsState().deviceName, 'ChromaPulse');
+    });
+
+    test('configs exported before the device name still import', () {
+      final settings = SettingsState.fromJson(
+        '{"dmxStartChannel":5,"universe":1,"allowBroadcast":true,'
+        '"controllerIpAddress":"","controllerPort":6454,"use4Channels":true,'
+        '"useTorchChannel":false}',
+      );
+      expect(settings.deviceName, 'ChromaPulse');
+      expect(settings.dmxStartChannel, 5);
+    });
+
+    test('export JSON omits the per-device name', () {
+      final settings = SettingsState(
+        dmxStartChannel: 7,
+        protocol: DmxProtocol.sacn,
+        deviceName: 'Bar',
+      );
+      final exported = settings.toSharedJson();
+      expect(json.decode(exported), isNot(contains('deviceName')));
+      final imported = SettingsState.fromJson(exported);
+      expect(imported.deviceName, 'ChromaPulse');
+      expect(imported.dmxStartChannel, 7);
+      expect(imported.protocol, DmxProtocol.sacn);
+    });
+
+    test('parseDeviceName accepts trimmed printable ASCII up to 17 chars', () {
+      expect(SettingsState.parseDeviceName('Stage Left 3'), 'Stage Left 3');
+      expect(SettingsState.parseDeviceName('  Bar  '), 'Bar');
+      expect(
+        SettingsState.parseDeviceName('12345678901234567'),
+        '12345678901234567',
+      );
+    });
+
+    test('parseDeviceName rejects empty, long and non-ASCII names', () {
+      expect(SettingsState.parseDeviceName(''), isNull);
+      expect(SettingsState.parseDeviceName('   '), isNull);
+      expect(SettingsState.parseDeviceName('123456789012345678'), isNull);
+      expect(SettingsState.parseDeviceName('Café'), isNull);
+      expect(SettingsState.parseDeviceName('Lamp 🔦'), isNull);
     });
 
     test('configs exported before the torch channel still import', () {

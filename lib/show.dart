@@ -171,7 +171,7 @@ class _ShowPageState extends ConsumerState<ShowPage> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            "Show Mode",
+                            settings.deviceName,
                             style: Theme.of(context).textTheme.headlineSmall,
                           ),
                           const StatusBadge(),

@@ -25,6 +25,13 @@ class SettingsState {
   final bool use4Channels;
   final bool useTorchChannel;
   final DmxProtocol protocol;
+  final String deviceName;
+
+  static const defaultDeviceName = 'ChromaPulse';
+
+  /// Art-Net ShortName holds 18 bytes including the NUL, so 17 characters
+  /// show up on consoles exactly as typed.
+  static const deviceNameMaxLength = 17;
 
   SettingsState({
     this.dmxStartChannel = 1,
@@ -35,6 +42,7 @@ class SettingsState {
     this.use4Channels = true,
     this.useTorchChannel = false,
     this.protocol = DmxProtocol.artnet,
+    this.deviceName = defaultDeviceName,
   });
 
   /// Number of consecutive DMX channels this device listens to.
@@ -57,6 +65,7 @@ class SettingsState {
     bool? use4Channels,
     bool? useTorchChannel,
     DmxProtocol? protocol,
+    String? deviceName,
   }) {
     return SettingsState(
       dmxStartChannel: dmxStartChannel ?? this.dmxStartChannel,
@@ -67,6 +76,7 @@ class SettingsState {
       use4Channels: use4Channels ?? this.use4Channels,
       useTorchChannel: useTorchChannel ?? this.useTorchChannel,
       protocol: protocol ?? this.protocol,
+      deviceName: deviceName ?? this.deviceName,
     );
   }
 
@@ -80,6 +90,7 @@ class SettingsState {
       'use4Channels': use4Channels,
       'useTorchChannel': useTorchChannel,
       'protocol': protocol.name,
+      'deviceName': deviceName,
     };
   }
 
@@ -94,17 +105,29 @@ class SettingsState {
       useTorchChannel: map['useTorchChannel'] ?? false,
       protocol:
           DmxProtocol.values.asNameMap()[map['protocol']] ?? DmxProtocol.artnet,
+      deviceName: map['deviceName'] ?? defaultDeviceName,
     );
   }
 
   String toJson() => json.encode(toMap());
+
+  String toSharedJson() => json.encode(toMap()..remove('deviceName'));
+
+  /// Returns the trimmed name if it is 1 to [deviceNameMaxLength] printable
+  /// ASCII characters, which is all Art-Net can carry.
+  static String? parseDeviceName(String input) {
+    final name = input.trim();
+    if (name.isEmpty || name.length > deviceNameMaxLength) return null;
+    final printable = name.codeUnits.every((c) => c >= 0x20 && c <= 0x7E);
+    return printable ? name : null;
+  }
 
   factory SettingsState.fromJson(String source) =>
       SettingsState.fromMap(json.decode(source));
 
   @override
   String toString() {
-    return 'SettingsState(dmxStartChannel: $dmxStartChannel, universe: $universe, allowBroadcast: $allowBroadcast, controllerIpAddress: $controllerIpAddress, controllerPort: $controllerPort, use4Channels: $use4Channels, useTorchChannel: $useTorchChannel, protocol: $protocol)';
+    return 'SettingsState(dmxStartChannel: $dmxStartChannel, universe: $universe, allowBroadcast: $allowBroadcast, controllerIpAddress: $controllerIpAddress, controllerPort: $controllerPort, use4Channels: $use4Channels, useTorchChannel: $useTorchChannel, protocol: $protocol, deviceName: $deviceName)';
   }
 
   @override
@@ -119,7 +142,8 @@ class SettingsState {
         other.controllerPort == controllerPort &&
         other.use4Channels == use4Channels &&
         other.useTorchChannel == useTorchChannel &&
-        other.protocol == protocol;
+        other.protocol == protocol &&
+        other.deviceName == deviceName;
   }
 
   @override
@@ -131,7 +155,8 @@ class SettingsState {
         controllerPort.hashCode ^
         use4Channels.hashCode ^
         useTorchChannel.hashCode ^
-        protocol.hashCode;
+        protocol.hashCode ^
+        deviceName.hashCode;
   }
 }
 
@@ -175,6 +200,9 @@ class SettingsProvider extends Notifier<SettingsState> {
   void setProtocol(DmxProtocol value) =>
       _update(state.copyWith(protocol: value));
 
+  void setDeviceName(String value) =>
+      _update(state.copyWith(deviceName: value));
+
   void reset() => _update(SettingsState());
 
   void saveSettings() {
@@ -182,5 +210,6 @@ class SettingsProvider extends Notifier<SettingsState> {
     Hive.box(key).put(key, state.toJson());
   }
 
-  void importSettings(SettingsState settings) => _update(settings);
+  void importSettings(SettingsState settings) =>
+      _update(settings.copyWith(deviceName: state.deviceName));
 }

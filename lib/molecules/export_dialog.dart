@@ -128,7 +128,7 @@ class _ExportConfigDialogState extends ConsumerState<ExportConfigDialog> {
 
   // json to base 64
   String _encode(SettingsState input) {
-    final bytes = input.toJson().codeUnits;
+    final bytes = input.toSharedJson().codeUnits;
     final base64Str = base64Encode(bytes);
     return "ChromaPulseConfigV1-$base64Str";
   }
