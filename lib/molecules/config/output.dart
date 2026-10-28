@@ -1,4 +1,5 @@
 import 'package:chromapulse/dimmer.dart';
+import 'package:chromapulse/providers/settings.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -8,8 +9,6 @@ import '../setting_edit_dialog.dart';
 
 class OutputConfigurationTile extends HookConsumerWidget {
   const OutputConfigurationTile({super.key});
-
-  static const maxFadeTimeMs = 10000;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -59,12 +58,12 @@ class OutputConfigurationTile extends HookConsumerWidget {
                     final fadeTimeMs = int.tryParse(setting);
                     if (fadeTimeMs == null ||
                         fadeTimeMs < 0 ||
-                        fadeTimeMs > maxFadeTimeMs) {
+                        fadeTimeMs > SettingsState.maxFadeTimeMs) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
+                        SnackBar(
                           content: Text(
                             "Invalid fade time, enter "
-                            "a number between 0 and $maxFadeTimeMs",
+                            "a number between 0 and ${SettingsState.maxFadeTimeMs}",
                           ),
                         ),
                       );

@@ -98,7 +98,10 @@ class _ShowPageState extends ConsumerState<ShowPage>
     final level = _shown.brightness;
     if (level == null) return;
     final sent = _sentBrightness;
-    if (sent != null && (level - sent).abs() < 1 / 255) return;
+    if (sent != null &&
+        (force ? level == sent : (level - sent).abs() < 1 / 255)) {
+      return;
+    }
     final now = DateTime.now();
     if (!force && now.difference(_sentAt) < _brightnessInterval) return;
     _sentBrightness = level;

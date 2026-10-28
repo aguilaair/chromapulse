@@ -20,6 +20,8 @@ enum DmxProtocol {
 enum SignalLossAction { hold, blackout, fade, colour }
 
 class SettingsState {
+  static const maxFadeTimeMs = 10000;
+
   final int dmxStartChannel;
   final int universe;
   final bool allowBroadcast;
@@ -150,7 +152,10 @@ class SettingsState {
       signalLossColor: (map['signalLossColor']?.toInt() ?? 0xFFFFFF) & 0xFFFFFF,
       dimmerCurve: DimmerCurve.fromName(map['dimmerCurve']),
       curveRgb: map['curveRgb'] ?? false,
-      fadeTimeMs: map['fadeTimeMs']?.toInt() ?? 0,
+      fadeTimeMs: ((map['fadeTimeMs'] as num?)?.toInt() ?? 0).clamp(
+        0,
+        maxFadeTimeMs,
+      ),
     );
   }
 

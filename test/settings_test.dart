@@ -231,6 +231,11 @@ void main() {
       expect(imported.fadeTimeMs, 400);
     });
 
+    test('imported fade times are clamped', () {
+      expect(SettingsState.fromMap({'fadeTimeMs': -500}).fadeTimeMs, 0);
+      expect(SettingsState.fromMap({'fadeTimeMs': 1e12}).fadeTimeMs, 10000);
+    });
+
     test('an unknown dimmer curve falls back to linear', () {
       expect(
         SettingsState.fromMap({'dimmerCurve': 'cubic'}).dimmerCurve,
