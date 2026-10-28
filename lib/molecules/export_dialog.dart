@@ -26,13 +26,14 @@ class _ExportConfigDialogState extends ConsumerState<ExportConfigDialog> {
     super.initState();
     final settings = ref.read(settingsStateProvider);
     qrData = settings;
-    numChannels = settings.use4Channels ? 4 : 3;
+    numChannels = settings.channelCount;
   }
 
   @override
   Widget build(BuildContext context) {
-    final channelController =
-        useTextEditingController(text: qrData.dmxStartChannel.toString());
+    final channelController = useTextEditingController(
+      text: qrData.dmxStartChannel.toString(),
+    );
 
     return AlertDialog(
       scrollable: true,
@@ -42,7 +43,8 @@ class _ExportConfigDialogState extends ConsumerState<ExportConfigDialog> {
         mainAxisSize: MainAxisSize.min,
         children: [
           const Text(
-              "Scan this QR code with the ChromaPulse mobile app to import this configuration into another device."),
+            "Scan this QR code with the ChromaPulse mobile app to import this configuration into another device.",
+          ),
           const SizedBox(height: 16),
           SizedBox(
             width: 200,
@@ -63,23 +65,23 @@ class _ExportConfigDialogState extends ConsumerState<ExportConfigDialog> {
           // Channel modification textbox
           const SizedBox(height: 16),
           const Text(
-              "You can also modify the channel values below to change the configuration."),
+            "You can also modify the channel values below to change the configuration.",
+          ),
           const SizedBox(height: 16),
           // Outline button to go to next channel
           OutlinedButton.icon(
             onPressed: () {
               final newChannel = qrData.dmxStartChannel + numChannels;
-              setState(
-                () {
-                  qrData = qrData.copyWith(
-                    dmxStartChannel:
-                        newChannel + numChannels > 512 ? 1 : newChannel,
-                  );
-                  channelController.value = TextEditingValue(
-                    text: qrData.dmxStartChannel.toString(),
-                  );
-                },
-              );
+              setState(() {
+                qrData = qrData.copyWith(
+                  dmxStartChannel: newChannel + numChannels - 1 > 512
+                      ? 1
+                      : newChannel,
+                );
+                channelController.value = TextEditingValue(
+                  text: qrData.dmxStartChannel.toString(),
+                );
+              });
             },
             icon: const Icon(CupertinoIcons.arrow_right_circle),
             label: const Text("Next Channel"),
@@ -101,8 +103,9 @@ class _ExportConfigDialogState extends ConsumerState<ExportConfigDialog> {
                       return;
                     }
                     setState(() {
-                      qrData =
-                          qrData.copyWith(dmxStartChannel: int.parse(value));
+                      qrData = qrData.copyWith(
+                        dmxStartChannel: int.parse(value),
+                      );
                     });
                   },
                 ),

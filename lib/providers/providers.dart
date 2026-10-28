@@ -4,16 +4,16 @@ import 'package:chromapulse/providers/settings.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 final networkStateProvider =
-    StateNotifierProvider.autoDispose<NetworkProvider, NetworkState>((ref) {
-  return NetworkProvider(ref);
-});
+    NotifierProvider.autoDispose<NetworkProvider, NetworkState>(
+      NetworkProvider.new,
+    );
 
 final settingsStateProvider =
-    StateNotifierProvider.autoDispose<SettingsProvider, SettingsState>((ref) {
-  return SettingsProvider(ref);
-});
+    NotifierProvider.autoDispose<SettingsProvider, SettingsState>(
+      SettingsProvider.new,
+    );
 
 final artnetStateProvider =
-    StateNotifierProvider.autoDispose<ArtnetProvider, ArtnetState>((ref) {
-  return ArtnetProvider(ref);
-});
+    NotifierProvider.autoDispose<ArtnetProvider, ArtnetState>(
+      ArtnetProvider.new,
+    );

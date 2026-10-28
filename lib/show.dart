@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:screen_brightness/screen_brightness.dart';
+import 'package:torch_light/torch_light.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 class ShowPage extends StatefulHookConsumerWidget {
@@ -15,14 +16,46 @@ class ShowPage extends StatefulHookConsumerWidget {
 }
 
 class _ShowPageState extends ConsumerState<ShowPage> {
+  bool _torchAvailable = false;
+  bool _torchOn = false;
+  Future<void> _torchQueue = Future.value();
+
+  @override
+  void initState() {
+    super.initState();
+    _checkTorch();
+  }
+
+  Future<void> _checkTorch() async {
+    bool available;
+    try {
+      available = await TorchLight.isTorchAvailable();
+    } catch (e) {
+      // Not implemented on desktop/web
+      available = false;
+    }
+    if (mounted) setState(() => _torchAvailable = available);
+  }
+
+  /// Serialises torch calls so fast DMX chases can't race each other.
+  void _setTorch(bool on) {
+    if (!_torchAvailable || on == _torchOn) return;
+    _torchOn = on;
+    _torchQueue = _torchQueue.then((_) async {
+      try {
+        on ? await TorchLight.enableTorch() : await TorchLight.disableTorch();
+      } catch (e) {
+        // Camera busy or torch unavailable, nothing useful to do mid-show
+      }
+    });
+  }
+
   // Show material banner on page load
   @override
   void didChangeDependencies() {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
     WakelockPlus.enable();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-    ]);
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     super.didChangeDependencies();
   }
 
@@ -33,6 +66,7 @@ class _ShowPageState extends ConsumerState<ShowPage> {
   }
 
   void cleanUp() {
+    _setTorch(false);
     ScreenBrightness().resetApplicationScreenBrightness();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setPreferredOrientations([
@@ -51,13 +85,26 @@ class _ShowPageState extends ConsumerState<ShowPage> {
   @override
   Widget build(BuildContext context) {
     artnetState = ref.watch(artnetStateProvider);
-    final is4Channel = ref.read(settingsStateProvider).use4Channels;
+    final settings = ref.read(settingsStateProvider);
+    final is4Channel = settings.use4Channels;
+    final useTorchChannel = settings.useTorchChannel;
+
+    // DMX drives the torch; any change on the channel overrides manual taps
+    ref.listen(artnetStateProvider.select((s) => s.torch.value), (
+      previous,
+      value,
+    ) {
+      if (useTorchChannel && value >= 0) {
+        setState(() => _setTorch(value >= 128));
+      }
+    });
     late String packetTimeAgo;
     Duration? packetTimeDifference;
     if (artnetState?.lastValidPacketTime != null) {
       // Difference between now and last packet time
-      packetTimeDifference = DateTime.now()
-          .difference(artnetState!.lastValidPacketTime ?? DateTime.now());
+      packetTimeDifference = DateTime.now().difference(
+        artnetState!.lastValidPacketTime ?? DateTime.now(),
+      );
       // seconds since last packet
       final seconds = packetTimeDifference.inSeconds;
       packetTimeAgo = "${seconds}s ago";
@@ -113,98 +160,109 @@ class _ShowPageState extends ConsumerState<ShowPage> {
               right: 0,
               left: 0,
               child: Card(
-                  shadowColor: Colors.white.withValues(alpha: 0.2),
-                  elevation: 10,
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              "Show Mode",
-                              style: Theme.of(context).textTheme.headlineSmall,
-                            ),
-                            const StatusBadge(),
-                          ],
-                        ),
-                        const Divider(),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text("Last Packet: $packetTimeAgo"),
-                                Row(
-                                  children: [
+                shadowColor: Colors.white.withValues(alpha: 0.2),
+                elevation: 10,
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "Show Mode",
+                            style: Theme.of(context).textTheme.headlineSmall,
+                          ),
+                          const StatusBadge(),
+                        ],
+                      ),
+                      const Divider(),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text("Last Packet: $packetTimeAgo"),
+                              Row(
+                                children: [
+                                  Text(
+                                    "R: ${artnetState?.red.value ?? 0}",
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall!
+                                        .copyWith(color: Colors.red),
+                                  ),
+                                  Text(
+                                    " G: ${artnetState?.green.value ?? 0}",
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall!
+                                        .copyWith(color: Colors.green),
+                                  ),
+                                  Text(
+                                    " B: ${artnetState?.blue.value ?? 0}",
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall!
+                                        .copyWith(color: Colors.blue),
+                                  ),
+                                  if (is4Channel)
                                     Text(
-                                      "R: ${artnetState?.red.value ?? 0}",
+                                      " Br: ${artnetState?.brightness.value ?? 0}",
                                       style: Theme.of(context)
                                           .textTheme
                                           .bodySmall!
-                                          .copyWith(
-                                            color: Colors.red,
-                                          ),
+                                          .copyWith(color: Colors.white),
                                     ),
+                                  if (useTorchChannel)
                                     Text(
-                                      " G: ${artnetState?.green.value ?? 0}",
+                                      " T: ${artnetState?.torch.value ?? 0}",
                                       style: Theme.of(context)
                                           .textTheme
                                           .bodySmall!
-                                          .copyWith(
-                                            color: Colors.green,
-                                          ),
+                                          .copyWith(color: Colors.amber),
                                     ),
-                                    Text(
-                                      " B: ${artnetState?.blue.value ?? 0}",
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall!
-                                          .copyWith(
-                                            color: Colors.blue,
-                                          ),
-                                    ),
-                                    if (is4Channel)
-                                      Text(
-                                        " Br: ${artnetState?.brightness.value ?? 0}",
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall!
-                                            .copyWith(
-                                              color: Colors.white,
-                                            ),
-                                      ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                OutlinedButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      _isBannerVisible = false;
-                                    });
-                                  },
-                                  child: const Text("Hide"),
-                                ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              if (_torchAvailable)
                                 IconButton(
                                   onPressed: () {
-                                    cleanUp();
-                                    Navigator.of(context).pop();
+                                    setState(() => _setTorch(!_torchOn));
                                   },
-                                  icon: const Icon(CupertinoIcons.settings),
+                                  tooltip: "Torch",
+                                  isSelected: _torchOn,
+                                  icon: const Icon(Icons.flashlight_off),
+                                  selectedIcon: const Icon(Icons.flashlight_on),
                                 ),
-                              ],
-                            )
-                          ],
-                        )
-                      ],
-                    ),
-                  )),
+                              OutlinedButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _isBannerVisible = false;
+                                  });
+                                },
+                                child: const Text("Hide"),
+                              ),
+                              IconButton(
+                                onPressed: () {
+                                  cleanUp();
+                                  Navigator.of(context).pop();
+                                },
+                                icon: const Icon(CupertinoIcons.settings),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -220,28 +278,26 @@ class StatusBadge extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final artnetState = ref.watch(artnetStateProvider);
     return Chip(
-        label: Text(
-          "Status: ${artnetState.isReady ? artnetState.lastValidPacketTime != null ? "Recieveing" : "Ready (Waiting)" : "Not Ready"}",
-          style: Theme.of(context)
-              .textTheme
-              .labelLarge
-              ?.copyWith(color: Colors.white),
-        ),
-        backgroundColor: getStatusColor(context, artnetState),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(999),
-        ),
-        side: const BorderSide(
-          color: Colors.white,
-          width: 1,
-        ));
+      label: Text(
+        "Status: ${artnetState.isReady
+            ? artnetState.lastValidPacketTime != null
+                  ? "Recieveing"
+                  : "Ready (Waiting)"
+            : "Not Ready"}",
+        style: Theme.of(context).textTheme.labelLarge
+            ?.copyWith(color: Colors.white),
+      ),
+      backgroundColor: getStatusColor(context, artnetState),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+      side: const BorderSide(color: Colors.white, width: 1),
+    );
   }
 }
 
 Color getStatusColor(BuildContext context, ArtnetState artnetState) {
   return artnetState.isReady
       ? artnetState.lastValidPacketTime == null
-          ? Colors.amber.shade700
-          : Colors.green
+            ? Colors.amber.shade700
+            : Colors.green
       : Colors.red;
 }

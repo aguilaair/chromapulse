@@ -24,9 +24,7 @@ class _ImportConfigDialogState extends ConsumerState<ImportConfigDialog> {
   void initState() {
     super.initState();
     // Lock orientation to portrait
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-    ]);
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   }
 
   @override
@@ -53,9 +51,7 @@ class _ImportConfigDialogState extends ConsumerState<ImportConfigDialog> {
           ? Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  "Configuration imported successfully!",
-                ),
+                const Text("Configuration imported successfully!"),
                 const SizedBox(height: 16),
                 // IP Address
                 Row(
@@ -97,7 +93,7 @@ class _ImportConfigDialogState extends ConsumerState<ImportConfigDialog> {
                           ? CupertinoIcons.check_mark_circled
                           : CupertinoIcons.xmark_circle,
                       size: Theme.of(context).textTheme.bodyMedium!.fontSize,
-                    )
+                    ),
                   ],
                 ),
                 // Allow Broadcast
@@ -111,17 +107,14 @@ class _ImportConfigDialogState extends ConsumerState<ImportConfigDialog> {
                           ? CupertinoIcons.check_mark_circled
                           : CupertinoIcons.xmark_circle,
                       size: Theme.of(context).textTheme.bodyMedium!.fontSize,
-                    )
+                    ),
                   ],
                 ),
                 // Import data version
                 const Row(
                   mainAxisSize: MainAxisSize.max,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text("Config Version: "),
-                    Text("v1"),
-                  ],
+                  children: [Text("Config Version: "), Text("v1")],
                 ),
               ],
             )
@@ -144,8 +137,10 @@ class _ImportConfigDialogState extends ConsumerState<ImportConfigDialog> {
                           return;
                         }
                         final barcode = barcodes.barcodes.first;
-                        final Uint8List? bytes = barcode.rawBytes;
-                        final json = String.fromCharCodes(bytes!);
+                        final json = barcode.rawValue;
+                        if (json == null) {
+                          return;
+                        }
                         SettingsState? settings;
                         try {
                           settings = _decode(json);

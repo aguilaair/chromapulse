@@ -10,6 +10,7 @@ class SettingsState {
   final String controllerIpAddress;
   final int controllerPort;
   final bool use4Channels;
+  final bool useTorchChannel;
 
   SettingsState({
     this.dmxStartChannel = 1,
@@ -18,7 +19,15 @@ class SettingsState {
     this.controllerIpAddress = "",
     this.controllerPort = 6454,
     this.use4Channels = true,
+    this.useTorchChannel = false,
   });
+
+  /// Number of consecutive DMX channels this device listens to.
+  int get channelCount =>
+      3 + (use4Channels ? 1 : 0) + (useTorchChannel ? 1 : 0);
+
+  /// Offset of the torch channel from [dmxStartChannel].
+  int get torchChannelOffset => use4Channels ? 4 : 3;
 
   SettingsState copyWith({
     int? dmxStartChannel,
@@ -27,6 +36,7 @@ class SettingsState {
     String? controllerIpAddress,
     int? controllerPort,
     bool? use4Channels,
+    bool? useTorchChannel,
   }) {
     return SettingsState(
       dmxStartChannel: dmxStartChannel ?? this.dmxStartChannel,
@@ -35,6 +45,7 @@ class SettingsState {
       controllerIpAddress: controllerIpAddress ?? this.controllerIpAddress,
       controllerPort: controllerPort ?? this.controllerPort,
       use4Channels: use4Channels ?? this.use4Channels,
+      useTorchChannel: useTorchChannel ?? this.useTorchChannel,
     );
   }
 
@@ -46,17 +57,19 @@ class SettingsState {
       'controllerIpAddress': controllerIpAddress,
       'controllerPort': controllerPort,
       'use4Channels': use4Channels,
+      'useTorchChannel': useTorchChannel,
     };
   }
 
   factory SettingsState.fromMap(Map<String, dynamic> map) {
     return SettingsState(
-      dmxStartChannel: map['dmxStartChannel']?.toInt() ?? 0,
-      universe: map['universe']?.toInt() ?? 0,
+      dmxStartChannel: map['dmxStartChannel']?.toInt() ?? 1,
+      universe: map['universe']?.toInt() ?? 1,
       allowBroadcast: map['allowBroadcast'] ?? true,
       controllerIpAddress: map['controllerIpAddress'] ?? '',
-      controllerPort: map['controllerPort']?.toInt() ?? 0,
+      controllerPort: map['controllerPort']?.toInt() ?? 6454,
       use4Channels: map['use4Channels'] ?? true,
+      useTorchChannel: map['useTorchChannel'] ?? false,
     );
   }
 
@@ -67,7 +80,7 @@ class SettingsState {
 
   @override
   String toString() {
-    return 'SettingsState(dmxStartChannel: $dmxStartChannel, universe: $universe, allowBroadcast: $allowBroadcast, controllerIpAddress: $controllerIpAddress, controllerPort: $controllerPort, use4Channels: $use4Channels)';
+    return 'SettingsState(dmxStartChannel: $dmxStartChannel, universe: $universe, allowBroadcast: $allowBroadcast, controllerIpAddress: $controllerIpAddress, controllerPort: $controllerPort, use4Channels: $use4Channels, useTorchChannel: $useTorchChannel)';
   }
 
   @override
@@ -80,7 +93,8 @@ class SettingsState {
         other.allowBroadcast == allowBroadcast &&
         other.controllerIpAddress == controllerIpAddress &&
         other.controllerPort == controllerPort &&
-        other.use4Channels == use4Channels;
+        other.use4Channels == use4Channels &&
+        other.useTorchChannel == useTorchChannel;
   }
 
   @override
@@ -90,106 +104,54 @@ class SettingsState {
         allowBroadcast.hashCode ^
         controllerIpAddress.hashCode ^
         controllerPort.hashCode ^
-        use4Channels.hashCode;
+        use4Channels.hashCode ^
+        useTorchChannel.hashCode;
   }
 }
 
-class SettingsProvider extends StateNotifier<SettingsState> {
-  final Ref ref;
-
-  SettingsProvider(this.ref) : super(SettingsState()) {
-    loadSettings();
-  }
-
+class SettingsProvider extends Notifier<SettingsState> {
   static const String key = "settings";
 
-  void setDmxStartChannel(int value) {
-    state = SettingsState(
-      dmxStartChannel: value,
-      universe: state.universe,
-      allowBroadcast: state.allowBroadcast,
-      controllerIpAddress: state.controllerIpAddress,
-      controllerPort: state.controllerPort,
-    );
+  @override
+  SettingsState build() {
+    final box = Hive.box(key);
+    if (box.containsKey(key)) {
+      return SettingsState.fromJson(box.get(key));
+    }
+    return SettingsState();
+  }
+
+  void _update(SettingsState value) {
+    state = value;
     saveSettings();
   }
 
-  void setUniverse(int value) {
-    state = SettingsState(
-      dmxStartChannel: state.dmxStartChannel,
-      universe: value,
-      allowBroadcast: state.allowBroadcast,
-      controllerIpAddress: state.controllerIpAddress,
-      controllerPort: state.controllerPort,
-    );
-    saveSettings();
-  }
+  void setDmxStartChannel(int value) =>
+      _update(state.copyWith(dmxStartChannel: value));
 
-  void setAllowBroadcast(bool value) {
-    state = SettingsState(
-      dmxStartChannel: state.dmxStartChannel,
-      universe: state.universe,
-      allowBroadcast: value,
-      controllerIpAddress: state.controllerIpAddress,
-      controllerPort: state.controllerPort,
-    );
-    saveSettings();
-  }
+  void setUniverse(int value) => _update(state.copyWith(universe: value));
 
-  void setControllerIpAddress(String value) {
-    state = SettingsState(
-      dmxStartChannel: state.dmxStartChannel,
-      universe: state.universe,
-      allowBroadcast: state.allowBroadcast,
-      controllerIpAddress: value,
-      controllerPort: state.controllerPort,
-    );
-    saveSettings();
-  }
+  void setAllowBroadcast(bool value) =>
+      _update(state.copyWith(allowBroadcast: value));
 
-  void setControllerPort(int value) {
-    state = SettingsState(
-      dmxStartChannel: state.dmxStartChannel,
-      universe: state.universe,
-      allowBroadcast: state.allowBroadcast,
-      controllerIpAddress: state.controllerIpAddress,
-      controllerPort: value,
-    );
-    saveSettings();
-  }
+  void setControllerIpAddress(String value) =>
+      _update(state.copyWith(controllerIpAddress: value));
 
-  void setUse4Channels(bool value) {
-    state = SettingsState(
-      dmxStartChannel: state.dmxStartChannel,
-      universe: state.universe,
-      allowBroadcast: state.allowBroadcast,
-      controllerIpAddress: state.controllerIpAddress,
-      controllerPort: state.controllerPort,
-      use4Channels: value,
-    );
-    saveSettings();
-  }
+  void setControllerPort(int value) =>
+      _update(state.copyWith(controllerPort: value));
 
-  void reset() {
-    state = SettingsState();
-    saveSettings();
-  }
+  void setUse4Channels(bool value) =>
+      _update(state.copyWith(use4Channels: value));
+
+  void setUseTorchChannel(bool value) =>
+      _update(state.copyWith(useTorchChannel: value));
+
+  void reset() => _update(SettingsState());
 
   void saveSettings() {
     // Uses Hive
     Hive.box(key).put(key, state.toJson());
   }
 
-  void importSettings(SettingsState settings) {
-    state = settings;
-    saveSettings();
-  }
-
-  void loadSettings() {
-    // Uses Hive
-    final box = Hive.box(key);
-    if (box.containsKey(key)) {
-      state = SettingsState.fromJson(box.get(key));
-    }
-  }
+  void importSettings(SettingsState settings) => _update(settings);
 }

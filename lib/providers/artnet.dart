@@ -15,6 +15,8 @@ class DmxChannel {
     required this.value,
     required this.universe,
   });
+
+  static final unused = DmxChannel(channel: -1, value: -1, universe: -1);
 }
 
 class ArtnetState {
@@ -24,6 +26,7 @@ class ArtnetState {
   final DmxChannel green;
   final DmxChannel blue;
   final DmxChannel brightness;
+  final DmxChannel torch;
   final bool isBroadcasting;
   final bool isReady;
   final DateTime? lastValidPacketTime;
@@ -35,145 +38,134 @@ class ArtnetState {
     required this.green,
     required this.blue,
     required this.brightness,
+    required this.torch,
     required this.isBroadcasting,
     this.lastValidPacketTime,
     this.isReady = false,
   });
+
+  ArtnetState copyWith({
+    String? ip,
+    int? port,
+    DmxChannel? red,
+    DmxChannel? green,
+    DmxChannel? blue,
+    DmxChannel? brightness,
+    DmxChannel? torch,
+    bool? isBroadcasting,
+    bool? isReady,
+    DateTime? lastValidPacketTime,
+  }) {
+    return ArtnetState(
+      ip: ip ?? this.ip,
+      port: port ?? this.port,
+      red: red ?? this.red,
+      green: green ?? this.green,
+      blue: blue ?? this.blue,
+      brightness: brightness ?? this.brightness,
+      torch: torch ?? this.torch,
+      isBroadcasting: isBroadcasting ?? this.isBroadcasting,
+      isReady: isReady ?? this.isReady,
+      lastValidPacketTime: lastValidPacketTime ?? this.lastValidPacketTime,
+    );
+  }
 }
 
-class ArtnetProvider extends StateNotifier<ArtnetState> {
-  final Ref ref;
-
-  ArtnetProvider(this.ref)
-      : super(ArtnetState(
-          ip: '',
-          port: 0,
-          red: DmxChannel(channel: 0, value: 0, universe: 0),
-          green: DmxChannel(channel: 0, value: 0, universe: 0),
-          blue: DmxChannel(channel: 0, value: 0, universe: 0),
-          brightness: DmxChannel(channel: 0, value: 255, universe: 0),
-          isBroadcasting: false,
-        )) {
-    _init();
-  }
-
+class ArtnetProvider extends Notifier<ArtnetState> {
   RawDatagramSocket? _udp;
 
   @override
-  void dispose() {
-    _udp?.close();
-    if (mounted) super.dispose();
-  }
+  ArtnetState build() {
+    // Rebind the socket whenever the port changes. Watching also keeps the
+    // settings provider alive while we read it for every packet.
+    final port = ref.watch(
+      settingsStateProvider.select((s) => s.controllerPort),
+    );
+    ref.onDispose(() => _udp?.close());
+    _init(port);
 
-  Future<void> _init() async {
-    final settings = ref.read(settingsStateProvider);
-
-    // Subscribe to UDP packets
-    try {
-      _udp = await RawDatagramSocket.bind(
-        InternetAddress.anyIPv4,
-        settings.controllerPort,
-      );
-    } catch (e) {
-      return;
-    }
-
-    _udp?.listen((event) {
-      if (event == RawSocketEvent.read) {
-        final packet = _udp!.receive();
-        handleData(packet);
-      }
-    });
-
-    state = ArtnetState(
-      ip: settings.controllerIpAddress,
-      port: settings.controllerPort,
+    return ArtnetState(
+      ip: '',
+      port: 0,
       red: DmxChannel(channel: 0, value: 0, universe: 0),
       green: DmxChannel(channel: 0, value: 0, universe: 0),
       blue: DmxChannel(channel: 0, value: 0, universe: 0),
       brightness: DmxChannel(channel: 0, value: 255, universe: 0),
-      isBroadcasting: state.isBroadcasting,
+      torch: DmxChannel(channel: 0, value: 0, universe: 0),
+      isBroadcasting: false,
+    );
+  }
+
+  Future<void> _init(int port) async {
+    final settings = ref.read(settingsStateProvider);
+
+    // Subscribe to UDP packets
+    final RawDatagramSocket udp;
+    try {
+      udp = await RawDatagramSocket.bind(InternetAddress.anyIPv4, port);
+    } catch (e) {
+      return;
+    }
+    if (!ref.mounted) {
+      udp.close();
+      return;
+    }
+    _udp = udp;
+
+    udp.listen((event) {
+      if (event == RawSocketEvent.read) {
+        final packet = udp.receive();
+        if (packet != null) handleData(packet);
+      }
+    });
+
+    state = state.copyWith(
+      ip: settings.controllerIpAddress,
+      port: port,
       isReady: true,
     );
   }
 
   void setBroadcasting(bool value) {
-    state = ArtnetState(
-      ip: state.ip,
-      port: state.port,
-      red: state.red,
-      green: state.green,
-      blue: state.blue,
-      brightness: state.brightness,
-      isBroadcasting: value,
-      isReady: true,
-    );
+    state = state.copyWith(isBroadcasting: value, isReady: true);
   }
 
-  void handleData(Datagram? data) {
+  void handleData(Datagram data) {
+    if (!ArtnetCheckPacket(data.data)) return;
+
     final settings = ref.read(settingsStateProvider);
-    final isValid = ArtnetCheckPacket(data!.data);
+    state = state.copyWith(isReady: true, lastValidPacketTime: DateTime.now());
 
-    if (isValid) {
-      state = ArtnetState(
-        ip: state.ip,
-        port: state.port,
-        red: state.red,
-        green: state.green,
-        blue: state.blue,
-        brightness: state.brightness,
-        isBroadcasting: state.isBroadcasting,
-        isReady: true,
-        lastValidPacketTime: DateTime.now(),
-      );
-      // Parse the packet
-      final opCode = ArtnetGetOpCode(data.data);
-      if (opCode == ArtnetPollPacket.opCode) {
-        sendArtPollReply();
-      } else if (opCode == ArtnetDataPacket.opCode) {
-        final dmx = ArtnetDataPacket(packet: data.data);
+    // Parse the packet
+    final opCode = ArtnetGetOpCode(data.data);
+    if (opCode == ArtnetPollPacket.opCode) {
+      sendArtPollReply();
+    } else if (opCode == ArtnetDataPacket.opCode) {
+      final dmx = ArtnetDataPacket(packet: data.data);
 
-        if (dmx.universe != settings.universe - 1) {
-          return;
-        }
+      if (dmx.universe != settings.universe - 1) {
+        return;
+      }
 
-        // Get the channels we need
-        final dmxToWatch = dmx.dmx.sublist(settings.dmxStartChannel - 1,
-            settings.dmxStartChannel - 1 + (settings.use4Channels ? 4 : 3));
-
-        state = state = ArtnetState(
-          ip: state.ip,
-          port: state.port,
-          red: DmxChannel(
-            channel: settings.dmxStartChannel,
-            value: dmxToWatch[0],
-            universe: settings.universe,
-          ),
-          green: DmxChannel(
-            channel: settings.dmxStartChannel,
-            value: dmxToWatch[1],
-            universe: settings.universe,
-          ),
-          blue: DmxChannel(
-            channel: settings.dmxStartChannel,
-            value: dmxToWatch[2],
-            universe: settings.universe,
-          ),
-          brightness: settings.use4Channels
-              ? DmxChannel(
-                  channel: settings.dmxStartChannel,
-                  value: dmxToWatch[3],
-                  universe: settings.universe,
-                )
-              : DmxChannel(
-                  channel: -1,
-                  value: -1,
-                  universe: -1,
-                ),
-          isBroadcasting: state.isBroadcasting,
-          isReady: true,
+      // Art-Net allows short frames, treat missing channels as 0
+      DmxChannel channel(int offset) {
+        final index = settings.dmxStartChannel - 1 + offset;
+        return DmxChannel(
+          channel: settings.dmxStartChannel + offset,
+          value: index < dmx.dmx.length ? dmx.dmx[index] : 0,
+          universe: settings.universe,
         );
       }
+
+      state = state.copyWith(
+        red: channel(0),
+        green: channel(1),
+        blue: channel(2),
+        brightness: settings.use4Channels ? channel(3) : DmxChannel.unused,
+        torch: settings.useTorchChannel
+            ? channel(settings.torchChannelOffset)
+            : DmxChannel.unused,
+      );
     }
   }
 
@@ -197,18 +189,28 @@ class ArtnetProvider extends StateNotifier<ArtnetState> {
     packet.setPortType(ref.read(settingsStateProvider).dmxStartChannel + 2, 0);
     if (ref.read(settingsStateProvider).use4Channels) {
       packet.setPortType(
-          ref.read(settingsStateProvider).dmxStartChannel + 3, 0);
+        ref.read(settingsStateProvider).dmxStartChannel + 3,
+        0,
+      );
     }
 
     packet.setPortTypesInputArtnetAble(
-        ref.read(settingsStateProvider).dmxStartChannel, true);
+      ref.read(settingsStateProvider).dmxStartChannel,
+      true,
+    );
     packet.setPortTypesOutputArtnetAble(
-        ref.read(settingsStateProvider).dmxStartChannel + 1, true);
+      ref.read(settingsStateProvider).dmxStartChannel + 1,
+      true,
+    );
     packet.setPortTypesOutputArtnetAble(
-        ref.read(settingsStateProvider).dmxStartChannel + 2, true);
+      ref.read(settingsStateProvider).dmxStartChannel + 2,
+      true,
+    );
     if (ref.read(settingsStateProvider).use4Channels) {
       packet.setPortTypesOutputArtnetAble(
-          ref.read(settingsStateProvider).dmxStartChannel + 3, true);
+        ref.read(settingsStateProvider).dmxStartChannel + 3,
+        true,
+      );
     }
 
     packet.setSwOut(ref.read(settingsStateProvider).dmxStartChannel, 0);
