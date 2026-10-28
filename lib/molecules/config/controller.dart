@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 import '../../providers/providers.dart';
+import '../../providers/settings.dart';
 import '../setting_edit_dialog.dart';
 
 class ControllerConfigurationTile extends StatefulHookConsumerWidget {
@@ -21,6 +22,22 @@ class _ControllerConfigurationTileState
     return ExpansionTile(
       title: const Text("Controller Configuration"),
       children: [
+        ListTile(
+          title: const Text("Protocol"),
+          trailing: SegmentedButton<DmxProtocol>(
+            segments: [
+              for (final protocol in DmxProtocol.values)
+                ButtonSegment(value: protocol, label: Text(protocol.label)),
+            ],
+            selected: {settings.protocol},
+            showSelectedIcon: false,
+            onSelectionChanged: (selection) {
+              ref
+                  .read(settingsStateProvider.notifier)
+                  .setProtocol(selection.single);
+            },
+          ),
+        ),
         ListTile(
           title: const Text("Controller IP Address"),
           subtitle: Text(settings.controllerIpAddress),
