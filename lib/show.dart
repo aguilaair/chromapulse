@@ -4,6 +4,7 @@ import 'package:chromapulse/dimmer.dart';
 import 'package:chromapulse/providers/artnet.dart';
 import 'package:chromapulse/providers/providers.dart';
 import 'package:chromapulse/providers/settings.dart';
+import 'package:chromapulse/strobe.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -25,9 +26,20 @@ class _ShowPageState extends ConsumerState<ShowPage>
 
   bool _torchAvailable = false;
   bool _torchOn = false;
-  Future<void> _torchQueue = Future.value();
   bool _signalLost = false;
   Timer? _signalTimer;
+  late final _torch = LatestSwitch(
+    (on) => on ? TorchLight.enableTorch() : TorchLight.disableTorch(),
+    // Camera busy or torch unavailable, retry on the next DMX change
+    onFailed: (on) {
+      if (_torchOn == on && mounted) setState(() => _torchOn = !on);
+    },
+  );
+  late final _strobe = Strobe(() {
+    if (!mounted) return;
+    setState(() {});
+    _setTorch(_torchOn);
+  });
 
   late final SettingsState _settings;
   late final AnimationController _fade;
@@ -63,27 +75,30 @@ class _ShowPageState extends ConsumerState<ShowPage>
         artnet.streamTerminated ||
         settings.isSignalLost(artnet.lastValidPacketTime, DateTime.now());
     if (lost == _signalLost) return;
-    if (!lost) {
-      // Recovery is instant: jump to the packet's look instead of fading in
-      // from whatever was showing before the loss.
-      scheduleMicrotask(() {
-        if (mounted) {
-          setState(() => _snap(_levels(ref.read(artnetStateProvider))));
-        }
-      });
-    }
+    final hold = settings.signalLossAction == SignalLossAction.hold;
     setState(() {
       _signalLost = lost;
-      if (settings.signalLossAction == SignalLossAction.hold) return;
       if (lost) {
-        _setTorch(false);
-      } else if (settings.useTorchChannel) {
-        // The packet's channel values are written just after its timestamp.
-        scheduleMicrotask(() {
-          final torch = ref.read(artnetStateProvider).torch.value;
-          if (mounted && torch >= 0) setState(() => _setTorch(torch >= 128));
-        });
+        // A lost signal never strobes, even when the look is held.
+        _strobe.set(0);
+        if (!hold) _setTorch(false);
+        return;
       }
+      // The packet's channel values are written just after its timestamp.
+      scheduleMicrotask(() {
+        if (!mounted) return;
+        final artnet = ref.read(artnetStateProvider);
+        // Recovery is instant: jump to the packet's look instead of fading in
+        // from whatever was showing before the loss.
+        setState(() => _snap(_levels(artnet)));
+        if (settings.useStrobeChannel && artnet.strobe.value >= 0) {
+          _strobe.set(artnet.strobe.value);
+        }
+        final torch = artnet.torch.value;
+        if (!hold && settings.useTorchChannel && torch >= 0) {
+          setState(() => _setTorch(torch >= 128));
+        }
+      });
     });
   }
 
@@ -132,18 +147,10 @@ class _ShowPageState extends ConsumerState<ShowPage>
     if (mounted) setState(() => _torchAvailable = available);
   }
 
-  /// Serialises torch calls so fast DMX chases can't race each other.
   void _setTorch(bool on) {
-    if (!_torchAvailable || on == _torchOn) return;
+    if (!_torchAvailable) return;
     _torchOn = on;
-    _torchQueue = _torchQueue.then((_) async {
-      try {
-        on ? await TorchLight.enableTorch() : await TorchLight.disableTorch();
-      } catch (e) {
-        // Camera busy or torch unavailable, retry on the next DMX change
-        if (_torchOn == on && mounted) setState(() => _torchOn = !on);
-      }
-    });
+    _torch.set(_torchOn && _strobe.lit);
   }
 
   // Show material banner on page load
@@ -164,6 +171,7 @@ class _ShowPageState extends ConsumerState<ShowPage>
   }
 
   void cleanUp() {
+    _strobe.cancel();
     _setTorch(false);
     ScreenBrightness().resetApplicationScreenBrightness();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -185,6 +193,7 @@ class _ShowPageState extends ConsumerState<ShowPage>
     final settings = ref.read(settingsStateProvider);
     final is4Channel = settings.use4Channels;
     final useTorchChannel = settings.useTorchChannel;
+    final useStrobeChannel = settings.useStrobeChannel;
 
     // DMX drives the torch; any change on the channel overrides manual taps
     ref.listen(artnetStateProvider.select((s) => s.torch.value), (
@@ -201,6 +210,14 @@ class _ShowPageState extends ConsumerState<ShowPage>
       ),
       (_, _) => _checkSignal(),
     );
+    ref.listen(artnetStateProvider.select((s) => s.strobe.value), (
+      previous,
+      value,
+    ) {
+      if (useStrobeChannel && value >= 0 && !_signalLost) {
+        _strobe.set(value);
+      }
+    });
     late String packetTimeAgo;
     Duration? packetTimeDifference;
     if (artnetState?.lastValidPacketTime != null) {
@@ -236,6 +253,7 @@ class _ShowPageState extends ConsumerState<ShowPage>
                     green: shown.green,
                     blue: shown.blue,
                   );
+                  final strobedColor = _strobe.lit ? liveColor : Colors.black;
                   return AnimatedContainer(
                     width: double.infinity,
                     height: double.infinity,
@@ -245,9 +263,9 @@ class _ShowPageState extends ConsumerState<ShowPage>
                         ? const Duration(seconds: 2)
                         : Duration.zero,
                     color: !_signalLost
-                        ? liveColor
+                        ? strobedColor
                         : switch (settings.signalLossAction) {
-                            SignalLossAction.hold => liveColor,
+                            SignalLossAction.hold => strobedColor,
                             SignalLossAction.blackout ||
                             SignalLossAction.fade => Colors.black,
                             SignalLossAction.colour => Color(
@@ -339,6 +357,14 @@ class _ShowPageState extends ConsumerState<ShowPage>
                                           .textTheme
                                           .bodySmall!
                                           .copyWith(color: Colors.amber),
+                                    ),
+                                  if (useStrobeChannel)
+                                    Text(
+                                      " S: ${artnetState?.strobe.value ?? 0}",
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall!
+                                          .copyWith(color: Colors.white),
                                     ),
                                 ],
                               ),

@@ -9,11 +9,18 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 import 'sacn_test.dart' show e131;
 
-Future<ProviderContainer> receiver(DmxProtocol protocol) async {
+Future<ProviderContainer> receiver(
+  DmxProtocol protocol, {
+  bool useStrobeChannel = false,
+}) async {
   final box = await Hive.openBox(SettingsProvider.key);
   await box.put(
     SettingsProvider.key,
-    SettingsState(protocol: protocol, universe: 2).toJson(),
+    SettingsState(
+      protocol: protocol,
+      universe: 2,
+      useStrobeChannel: useStrobeChannel,
+    ).toJson(),
   );
   final container = ProviderContainer();
   addTearDown(container.dispose);
@@ -43,6 +50,16 @@ void main() {
       [state.red.value, state.green.value, state.blue.value],
       [255, 128, 0],
     );
+  });
+
+  test('sACN mode reads the strobe channel', () async {
+    final container = await receiver(DmxProtocol.sacn, useStrobeChannel: true);
+    await send(
+      InternetAddress.loopbackIPv4,
+      e131(universe: 2, dmx: [255, 128, 0, 200, 77]),
+    );
+    final strobe = container.read(artnetStateProvider).strobe;
+    expect([strobe.channel, strobe.value], [5, 77]);
   });
 
   test('Art-Net mode ignores sACN', () async {

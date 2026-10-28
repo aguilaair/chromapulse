@@ -30,6 +30,7 @@ class ArtnetState {
   final DmxChannel blue;
   final DmxChannel brightness;
   final DmxChannel torch;
+  final DmxChannel strobe;
   final bool isBroadcasting;
   final bool isReady;
   final DateTime? lastValidPacketTime;
@@ -43,11 +44,12 @@ class ArtnetState {
     required this.blue,
     required this.brightness,
     required this.torch,
+    DmxChannel? strobe,
     required this.isBroadcasting,
     this.lastValidPacketTime,
     this.isReady = false,
     this.streamTerminated = false,
-  });
+  }) : strobe = strobe ?? DmxChannel.unused;
 
   ArtnetState copyWith({
     String? ip,
@@ -57,6 +59,7 @@ class ArtnetState {
     DmxChannel? blue,
     DmxChannel? brightness,
     DmxChannel? torch,
+    DmxChannel? strobe,
     bool? isBroadcasting,
     bool? isReady,
     DateTime? lastValidPacketTime,
@@ -70,6 +73,7 @@ class ArtnetState {
       blue: blue ?? this.blue,
       brightness: brightness ?? this.brightness,
       torch: torch ?? this.torch,
+      strobe: strobe ?? this.strobe,
       isBroadcasting: isBroadcasting ?? this.isBroadcasting,
       isReady: isReady ?? this.isReady,
       lastValidPacketTime: lastValidPacketTime ?? this.lastValidPacketTime,
@@ -118,6 +122,7 @@ class ArtnetProvider extends Notifier<ArtnetState> {
       blue: DmxChannel(channel: 0, value: 0, universe: 0),
       brightness: DmxChannel(channel: 0, value: 255, universe: 0),
       torch: DmxChannel(channel: 0, value: 0, universe: 0),
+      strobe: DmxChannel(channel: 0, value: 0, universe: 0),
       isBroadcasting: false,
     );
   }
@@ -259,6 +264,9 @@ class ArtnetProvider extends Notifier<ArtnetState> {
       brightness: settings.use4Channels ? channel(3) : DmxChannel.unused,
       torch: settings.useTorchChannel
           ? channel(settings.torchChannelOffset)
+          : DmxChannel.unused,
+      strobe: settings.useStrobeChannel
+          ? channel(settings.strobeChannelOffset)
           : DmxChannel.unused,
     );
   }

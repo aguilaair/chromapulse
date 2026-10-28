@@ -36,7 +36,9 @@ void main() {
       UncontrolledProviderScope(
         container: container,
         child: const MaterialApp(
-          home: Scaffold(body: DeviceConfigurationTile()),
+          home: Scaffold(
+            body: SingleChildScrollView(child: DeviceConfigurationTile()),
+          ),
         ),
       ),
     );
@@ -47,11 +49,44 @@ void main() {
       of: find.widgetWithText(ListTile, 'Torch Channel'),
       matching: find.byType(Switch),
     );
+    await tester.ensureVisible(torchSwitch);
     await tester.tap(torchSwitch);
     await tester.pump();
 
     expect(find.textContaining('Not enough channels left'), findsOneWidget);
     expect(container.read(settingsStateProvider).useTorchChannel, false);
+    expect(find.text('509 through 512'), findsOneWidget);
+  });
+
+  testWidgets('strobe channel cannot push the patch past channel 512', (
+    tester,
+  ) async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(child: DeviceConfigurationTile()),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Device Configuration'));
+    await tester.pumpAndSettle();
+
+    final strobeSwitch = find.descendant(
+      of: find.widgetWithText(ListTile, 'Strobe Channel'),
+      matching: find.byType(Switch),
+    );
+    await tester.ensureVisible(strobeSwitch);
+    await tester.tap(strobeSwitch);
+    await tester.pump();
+
+    expect(find.textContaining('Not enough channels left'), findsOneWidget);
+    expect(container.read(settingsStateProvider).useStrobeChannel, false);
     expect(find.text('509 through 512'), findsOneWidget);
   });
 }

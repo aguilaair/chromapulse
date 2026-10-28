@@ -5,6 +5,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 import '../../providers/providers.dart';
 import '../../providers/settings.dart';
+import '../../strobe.dart';
 import '../setting_edit_dialog.dart';
 
 class DeviceConfigurationTile extends StatefulHookConsumerWidget {
@@ -102,6 +103,29 @@ class _DeviceConfigurationTileState
               ref
                   .read(settingsStateProvider.notifier)
                   .setUseTorchChannel(value);
+            },
+          ),
+        ),
+        ListTile(
+          title: const Text("Strobe Channel"),
+          subtitle: Text(
+            "Adds a channel after "
+            "${settings.useTorchChannel
+                ? "torch"
+                : settings.use4Channels
+                ? "brightness"
+                : "blue"} that "
+            "strobes the screen${settings.useTorchChannel ? " and torch" : ""}. "
+            "0 is off, 1 to 255 is ${minStrobeHz.toStringAsFixed(1)} to "
+            "${maxStrobeHz.toStringAsFixed(0)} flashes per second.",
+          ),
+          trailing: Switch(
+            value: settings.useStrobeChannel,
+            onChanged: (value) {
+              if (!_fits(settings.copyWith(useStrobeChannel: value))) return;
+              ref
+                  .read(settingsStateProvider.notifier)
+                  .setUseStrobeChannel(value);
             },
           ),
         ),
