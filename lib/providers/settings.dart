@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:chromapulse/dimmer.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
@@ -31,6 +32,9 @@ class SettingsState {
   final SignalLossAction signalLossAction;
   final int signalLossTimeout;
   final int signalLossColor;
+  final DimmerCurve dimmerCurve;
+  final bool curveRgb;
+  final int fadeTimeMs;
 
   static const defaultDeviceName = 'ChromaPulse';
 
@@ -51,6 +55,9 @@ class SettingsState {
     this.signalLossAction = SignalLossAction.hold,
     this.signalLossTimeout = 4,
     this.signalLossColor = 0xFFFFFF,
+    this.dimmerCurve = DimmerCurve.linear,
+    this.curveRgb = false,
+    this.fadeTimeMs = 0,
   });
 
   /// Number of consecutive DMX channels this device listens to.
@@ -81,6 +88,9 @@ class SettingsState {
     SignalLossAction? signalLossAction,
     int? signalLossTimeout,
     int? signalLossColor,
+    DimmerCurve? dimmerCurve,
+    bool? curveRgb,
+    int? fadeTimeMs,
   }) {
     return SettingsState(
       dmxStartChannel: dmxStartChannel ?? this.dmxStartChannel,
@@ -95,6 +105,9 @@ class SettingsState {
       signalLossAction: signalLossAction ?? this.signalLossAction,
       signalLossTimeout: signalLossTimeout ?? this.signalLossTimeout,
       signalLossColor: signalLossColor ?? this.signalLossColor,
+      dimmerCurve: dimmerCurve ?? this.dimmerCurve,
+      curveRgb: curveRgb ?? this.curveRgb,
+      fadeTimeMs: fadeTimeMs ?? this.fadeTimeMs,
     );
   }
 
@@ -112,6 +125,9 @@ class SettingsState {
       'signalLossAction': signalLossAction.name,
       'signalLossTimeout': signalLossTimeout,
       'signalLossColor': signalLossColor,
+      'dimmerCurve': dimmerCurve.name,
+      'curveRgb': curveRgb,
+      'fadeTimeMs': fadeTimeMs,
     };
   }
 
@@ -132,6 +148,9 @@ class SettingsState {
           SignalLossAction.hold,
       signalLossTimeout: (map['signalLossTimeout']?.toInt() ?? 4).clamp(1, 60),
       signalLossColor: (map['signalLossColor']?.toInt() ?? 0xFFFFFF) & 0xFFFFFF,
+      dimmerCurve: DimmerCurve.fromName(map['dimmerCurve']),
+      curveRgb: map['curveRgb'] ?? false,
+      fadeTimeMs: map['fadeTimeMs']?.toInt() ?? 0,
     );
   }
 
@@ -153,7 +172,7 @@ class SettingsState {
 
   @override
   String toString() {
-    return 'SettingsState(dmxStartChannel: $dmxStartChannel, universe: $universe, allowBroadcast: $allowBroadcast, controllerIpAddress: $controllerIpAddress, controllerPort: $controllerPort, use4Channels: $use4Channels, useTorchChannel: $useTorchChannel, protocol: $protocol, deviceName: $deviceName, signalLossAction: $signalLossAction, signalLossTimeout: $signalLossTimeout, signalLossColor: $signalLossColor)';
+    return 'SettingsState(dmxStartChannel: $dmxStartChannel, universe: $universe, allowBroadcast: $allowBroadcast, controllerIpAddress: $controllerIpAddress, controllerPort: $controllerPort, use4Channels: $use4Channels, useTorchChannel: $useTorchChannel, protocol: $protocol, deviceName: $deviceName, signalLossAction: $signalLossAction, signalLossTimeout: $signalLossTimeout, signalLossColor: $signalLossColor, dimmerCurve: $dimmerCurve, curveRgb: $curveRgb, fadeTimeMs: $fadeTimeMs)';
   }
 
   @override
@@ -172,7 +191,10 @@ class SettingsState {
         other.deviceName == deviceName &&
         other.signalLossAction == signalLossAction &&
         other.signalLossTimeout == signalLossTimeout &&
-        other.signalLossColor == signalLossColor;
+        other.signalLossColor == signalLossColor &&
+        other.dimmerCurve == dimmerCurve &&
+        other.curveRgb == curveRgb &&
+        other.fadeTimeMs == fadeTimeMs;
   }
 
   @override
@@ -188,7 +210,10 @@ class SettingsState {
         deviceName.hashCode ^
         signalLossAction.hashCode ^
         signalLossTimeout.hashCode ^
-        signalLossColor.hashCode;
+        signalLossColor.hashCode ^
+        dimmerCurve.hashCode ^
+        curveRgb.hashCode ^
+        fadeTimeMs.hashCode;
   }
 }
 
@@ -231,6 +256,13 @@ class SettingsProvider extends Notifier<SettingsState> {
 
   void setProtocol(DmxProtocol value) =>
       _update(state.copyWith(protocol: value));
+
+  void setDimmerCurve(DimmerCurve value) =>
+      _update(state.copyWith(dimmerCurve: value));
+
+  void setCurveRgb(bool value) => _update(state.copyWith(curveRgb: value));
+
+  void setFadeTimeMs(int value) => _update(state.copyWith(fadeTimeMs: value));
 
   void setDeviceName(String value) =>
       _update(state.copyWith(deviceName: value));

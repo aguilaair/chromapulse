@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:chromapulse/dimmer.dart';
 import 'package:chromapulse/providers/settings.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -52,6 +53,9 @@ void main() {
         use4Channels: false,
         useTorchChannel: true,
         deviceName: 'Stage Left 3',
+        dimmerCurve: DimmerCurve.square,
+        curveRgb: true,
+        fadeTimeMs: 250,
       );
       final decoded = SettingsState.fromJson(settings.toJson());
       expect(decoded, settings);
@@ -200,6 +204,37 @@ void main() {
       expect(
         settings.isSignalLost(now.subtract(const Duration(seconds: 4)), now),
         true,
+      );
+    });
+
+    test('configs exported before dimmer curves still import', () {
+      final settings = SettingsState.fromJson(
+        '{"dmxStartChannel":5,"universe":1,"allowBroadcast":true,'
+        '"controllerIpAddress":"","controllerPort":6454,"use4Channels":true,'
+        '"useTorchChannel":true}',
+      );
+      expect(settings.dimmerCurve, DimmerCurve.linear);
+      expect(settings.curveRgb, false);
+      expect(settings.fadeTimeMs, 0);
+      expect(settings.useTorchChannel, true);
+    });
+
+    test('export JSON shares the curve and fade settings', () {
+      final settings = SettingsState(
+        dimmerCurve: DimmerCurve.square,
+        curveRgb: true,
+        fadeTimeMs: 400,
+      );
+      final imported = SettingsState.fromJson(settings.toSharedJson());
+      expect(imported.dimmerCurve, DimmerCurve.square);
+      expect(imported.curveRgb, true);
+      expect(imported.fadeTimeMs, 400);
+    });
+
+    test('an unknown dimmer curve falls back to linear', () {
+      expect(
+        SettingsState.fromMap({'dimmerCurve': 'cubic'}).dimmerCurve,
+        DimmerCurve.linear,
       );
     });
   });
