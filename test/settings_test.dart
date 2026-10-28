@@ -314,5 +314,80 @@ void main() {
         DimmerCurve.linear,
       );
     });
+
+    test('zones take 3 channels each ahead of brightness and torch', () {
+      final four = SettingsState(zoneCount: 4, useTorchChannel: true);
+      expect(four.brightnessChannelOffset, 12);
+      expect(four.torchChannelOffset, 13);
+      expect(four.channelCount, 14);
+      expect(four.maxStartChannel, 499);
+      expect(SettingsState(zoneCount: 2, use4Channels: false).channelCount, 6);
+    });
+
+    test('fitsUniverse counts every zone', () {
+      expect(
+        SettingsState(zoneCount: 4, dmxStartChannel: 500).fitsUniverse,
+        true,
+      );
+      expect(
+        SettingsState(zoneCount: 4, dmxStartChannel: 501).fitsUniverse,
+        false,
+      );
+    });
+
+    test('4 zones with every optional channel fit up to start 498', () {
+      final full = SettingsState(
+        zoneCount: 4,
+        use4Channels: true,
+        useTorchChannel: true,
+        useStrobeChannel: true,
+      );
+      expect(full.brightnessChannelOffset, 12);
+      expect(full.torchChannelOffset, 13);
+      expect(full.strobeChannelOffset, 14);
+      expect(full.channelCount, 15);
+      expect(full.copyWith(dmxStartChannel: 498).fitsUniverse, true);
+      expect(full.copyWith(dmxStartChannel: 499).fitsUniverse, false);
+      expect(full.copyWith(dmxStartChannel: 483).nextStartChannel, 498);
+      expect(full.copyWith(dmxStartChannel: 484).nextStartChannel, 1);
+      expect(
+        SettingsState.fromJson(full.copyWith(dmxStartChannel: 7).toSharedJson())
+            .copyWith(deviceName: full.deviceName),
+        full.copyWith(dmxStartChannel: 7),
+      );
+    });
+
+    test('next start channel skips this device and wraps at 512', () {
+      expect(SettingsState(zoneCount: 4).nextStartChannel, 14);
+      expect(
+        SettingsState(zoneCount: 4, dmxStartChannel: 495).nextStartChannel,
+        1,
+      );
+      expect(
+        SettingsState(zoneCount: 4, dmxStartChannel: 486).nextStartChannel,
+        499,
+      );
+    });
+
+    test('JSON round trip keeps zones', () {
+      final settings = SettingsState(zoneCount: 3, zoneLayout: ZoneLayout.rows);
+      expect(SettingsState.fromJson(settings.toJson()), settings);
+    });
+
+    test('configs exported before colour zones import as one zone', () {
+      final settings = SettingsState.fromJson(
+        '{"dmxStartChannel":5,"universe":1,"allowBroadcast":true,'
+        '"controllerIpAddress":"","controllerPort":6454,"use4Channels":true,'
+        '"useTorchChannel":true}',
+      );
+      expect(settings.zoneCount, 1);
+      expect(settings.zoneLayout, ZoneLayout.columns);
+      expect(settings.channelCount, 5);
+    });
+
+    test('out of range zone counts are clamped on import', () {
+      expect(SettingsState.fromJson('{"zoneCount":9}').zoneCount, 4);
+      expect(SettingsState.fromJson('{"zoneCount":0}').zoneCount, 1);
+    });
   });
 }
