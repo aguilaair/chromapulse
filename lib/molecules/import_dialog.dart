@@ -82,6 +82,18 @@ class _ImportConfigDialogState extends ConsumerState<ImportConfigDialog> {
                     Text(qrData.dmxStartChannel.toString()),
                   ],
                 ),
+                Row(
+                  mainAxisSize: MainAxisSize.max,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text("Colour Zones: "),
+                    Text(
+                      qrData.zoneCount == 1
+                          ? "1"
+                          : "${qrData.zoneCount} ${qrData.zoneLayout.name}",
+                    ),
+                  ],
+                ),
                 // Use 4 Channels
                 Row(
                   mainAxisSize: MainAxisSize.max,
