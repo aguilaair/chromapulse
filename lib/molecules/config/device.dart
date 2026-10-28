@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 import '../../providers/providers.dart';
@@ -36,6 +37,43 @@ class _DeviceConfigurationTileState
     return ExpansionTile(
       title: const Text("Device Configuration"),
       children: [
+        ListTile(
+          title: const Text("Device Name"),
+          subtitle: Text(settings.deviceName),
+          trailing: IconButton(
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => SettingEditDialog(
+                  title: "Device Name",
+                  onSave: (setting) {
+                    final name = SettingsState.parseDeviceName(setting);
+                    if (name == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            "Enter 1 to ${SettingsState.deviceNameMaxLength} "
+                            "letters, numbers or symbols",
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+                    ref
+                        .read(settingsStateProvider.notifier)
+                        .setDeviceName(name);
+                  },
+                  initialValue: settings.deviceName,
+                  maxLength: SettingsState.deviceNameMaxLength,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[ -~]')),
+                  ],
+                ),
+              );
+            },
+            icon: const Icon(CupertinoIcons.pen),
+          ),
+        ),
         ListTile(
           title: const Text("4-Channel Mode"),
           subtitle: const Text(
