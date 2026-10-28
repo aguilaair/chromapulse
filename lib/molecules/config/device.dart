@@ -24,7 +24,7 @@ class _DeviceConfigurationTileState
       SnackBar(
         content: Text(
           "Not enough channels left in the universe, set the start "
-          "channel to ${512 - next.channelCount + 1} or lower first",
+          "channel to ${next.maxStartChannel} or lower first",
         ),
       ),
     );
@@ -34,7 +34,7 @@ class _DeviceConfigurationTileState
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsStateProvider);
-    final maxStartChannel = 512 - settings.channelCount + 1;
+    final maxStartChannel = settings.maxStartChannel;
     return ExpansionTile(
       title: const Text("Device Configuration"),
       children: [
@@ -90,10 +90,55 @@ class _DeviceConfigurationTileState
           ),
         ),
         ListTile(
+          title: const Text("Colour Zones"),
+          subtitle: const Text(
+            "Splits the screen into areas with their own RGB channels.",
+          ),
+          trailing: DropdownButton<int>(
+            value: settings.zoneCount,
+            items: [
+              for (var n = 1; n <= SettingsState.maxZones; n++)
+                DropdownMenuItem(value: n, child: Text("$n")),
+            ],
+            onChanged: (value) {
+              if (value == null ||
+                  !_fits(settings.copyWith(zoneCount: value))) {
+                return;
+              }
+              ref.read(settingsStateProvider.notifier).setZoneCount(value);
+            },
+          ),
+        ),
+        if (settings.zoneCount > 1)
+          ListTile(
+            title: const Text("Zone Layout"),
+            trailing: SegmentedButton<ZoneLayout>(
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(
+                  value: ZoneLayout.columns,
+                  icon: Icon(Icons.view_column),
+                  tooltip: "Columns",
+                ),
+                ButtonSegment(
+                  value: ZoneLayout.rows,
+                  icon: Icon(Icons.view_agenda),
+                  tooltip: "Rows",
+                ),
+              ],
+              selected: {settings.zoneLayout},
+              onSelectionChanged: (value) {
+                ref
+                    .read(settingsStateProvider.notifier)
+                    .setZoneLayout(value.single);
+              },
+            ),
+          ),
+        ListTile(
           title: const Text("Torch Channel"),
           subtitle: Text(
             "Adds a channel after "
-            "${settings.use4Channels ? "brightness" : "blue"} that "
+            "${settings.use4Channels ? "brightness" : "the last blue"} that "
             "turns the camera flash on at 50% or higher.",
           ),
           trailing: Switch(
@@ -114,7 +159,7 @@ class _DeviceConfigurationTileState
                 ? "torch"
                 : settings.use4Channels
                 ? "brightness"
-                : "blue"} that "
+                : "the last blue"} that "
             "strobes the screen${settings.useTorchChannel ? " and torch" : ""}. "
             "0 is off, 1 to 255 is ${minStrobeHz.toStringAsFixed(1)} to "
             "${maxStrobeHz.toStringAsFixed(0)} flashes per second.",

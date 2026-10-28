@@ -194,6 +194,12 @@ class _ShowPageState extends ConsumerState<ShowPage>
     final is4Channel = settings.use4Channels;
     final useTorchChannel = settings.useTorchChannel;
     final useStrobeChannel = settings.useStrobeChannel;
+    final zones = [
+      for (var z = 0; z < settings.zoneCount; z++)
+        z < (artnetState?.zones.length ?? 0)
+            ? artnetState!.zones[z]
+            : RgbZone.off,
+    ];
 
     // DMX drives the torch; any change on the channel overrides manual taps
     ref.listen(artnetStateProvider.select((s) => s.torch.value), (
@@ -232,6 +238,21 @@ class _ShowPageState extends ConsumerState<ShowPage>
       packetTimeAgo = "Never";
     }
 
+    // The strobe gates every zone together; loss looks cover the whole screen
+    Color shownColor(Color live) {
+      final strobed = _strobe.lit ? live : Colors.black;
+      return !_signalLost
+          ? strobed
+          : switch (settings.signalLossAction) {
+              SignalLossAction.hold => strobed,
+              SignalLossAction.blackout ||
+              SignalLossAction.fade => Colors.black,
+              SignalLossAction.colour => Color(
+                0xFF000000 | settings.signalLossColor,
+              ),
+            };
+    }
+
     return Scaffold(
       body: GestureDetector(
         onDoubleTap: () {
@@ -242,36 +263,22 @@ class _ShowPageState extends ConsumerState<ShowPage>
         behavior: HitTestBehavior.opaque,
         child: Stack(
           children: [
-            Positioned(
+            Positioned.fill(
               child: AnimatedBuilder(
                 animation: _fade,
                 builder: (context, _) {
-                  final shown = _shown;
-                  final liveColor = Color.from(
-                    alpha: 1,
-                    red: shown.red,
-                    green: shown.green,
-                    blue: shown.blue,
-                  );
-                  final strobedColor = _strobe.lit ? liveColor : Colors.black;
-                  return AnimatedContainer(
-                    width: double.infinity,
-                    height: double.infinity,
+                  final shown = _shown.zones;
+                  return ZoneCanvas(
+                    colors: [
+                      for (var z = 0; z < settings.zoneCount; z++)
+                        shownColor(z < shown.length ? shown[z] : Colors.black),
+                    ],
+                    layout: settings.zoneLayout,
                     duration:
                         _signalLost &&
                             settings.signalLossAction == SignalLossAction.fade
                         ? const Duration(seconds: 2)
                         : Duration.zero,
-                    color: !_signalLost
-                        ? strobedColor
-                        : switch (settings.signalLossAction) {
-                            SignalLossAction.hold => strobedColor,
-                            SignalLossAction.blackout ||
-                            SignalLossAction.fade => Colors.black,
-                            SignalLossAction.colour => Color(
-                              0xFF000000 | settings.signalLossColor,
-                            ),
-                          },
                   );
                 },
               ),
@@ -312,63 +319,69 @@ class _ShowPageState extends ConsumerState<ShowPage>
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "Last Packet: $packetTimeAgo"
-                                "${_signalLost ? " (signal lost)" : ""}",
-                              ),
-                              Row(
-                                children: [
-                                  Text(
-                                    "R: ${artnetState?.red.value ?? 0}",
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall!
-                                        .copyWith(color: Colors.red),
-                                  ),
-                                  Text(
-                                    " G: ${artnetState?.green.value ?? 0}",
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall!
-                                        .copyWith(color: Colors.green),
-                                  ),
-                                  Text(
-                                    " B: ${artnetState?.blue.value ?? 0}",
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall!
-                                        .copyWith(color: Colors.blue),
-                                  ),
-                                  if (is4Channel)
-                                    Text(
-                                      " Br: ${artnetState?.brightness.value ?? 0}",
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall!
-                                          .copyWith(color: Colors.white),
-                                    ),
-                                  if (useTorchChannel)
-                                    Text(
-                                      " T: ${artnetState?.torch.value ?? 0}",
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall!
-                                          .copyWith(color: Colors.amber),
-                                    ),
-                                  if (useStrobeChannel)
-                                    Text(
-                                      " S: ${artnetState?.strobe.value ?? 0}",
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall!
-                                          .copyWith(color: Colors.white),
-                                    ),
-                                ],
-                              ),
-                            ],
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Last Packet: $packetTimeAgo"
+                                  "${_signalLost ? " (signal lost)" : ""}",
+                                ),
+                                Wrap(
+                                  children: [
+                                    if (zones.length == 1) ...[
+                                      Text(
+                                        "R: ${zones.first.red}",
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall!
+                                            .copyWith(color: Colors.red),
+                                      ),
+                                      Text(
+                                        " G: ${zones.first.green}",
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall!
+                                            .copyWith(color: Colors.green),
+                                      ),
+                                      Text(
+                                        " B: ${zones.first.blue}",
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall!
+                                            .copyWith(color: Colors.blue),
+                                      ),
+                                    ] else
+                                      for (final zone in zones)
+                                        ZoneReadout(zone: zone),
+                                    if (is4Channel)
+                                      Text(
+                                        " Br: ${artnetState?.brightness.value ?? 0}",
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall!
+                                            .copyWith(color: Colors.white),
+                                      ),
+                                    if (useTorchChannel)
+                                      Text(
+                                        " T: ${artnetState?.torch.value ?? 0}",
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall!
+                                            .copyWith(color: Colors.amber),
+                                      ),
+                                    if (useStrobeChannel)
+                                      Text(
+                                        " S: ${artnetState?.strobe.value ?? 0}",
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall!
+                                            .copyWith(color: Colors.white),
+                                      ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,
@@ -409,6 +422,65 @@ class _ShowPageState extends ConsumerState<ShowPage>
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class ZoneCanvas extends StatelessWidget {
+  const ZoneCanvas({
+    super.key,
+    required this.colors,
+    required this.layout,
+    this.duration = Duration.zero,
+  });
+
+  final List<Color> colors;
+  final ZoneLayout layout;
+  final Duration duration;
+
+  @override
+  Widget build(BuildContext context) {
+    return Flex(
+      direction: layout == ZoneLayout.rows ? Axis.vertical : Axis.horizontal,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final color in colors)
+          Expanded(
+            child: AnimatedContainer(duration: duration, color: color),
+          ),
+      ],
+    );
+  }
+}
+
+class ZoneReadout extends StatelessWidget {
+  const ZoneReadout({super.key, required this.zone});
+
+  final RgbZone zone;
+
+  @override
+  Widget build(BuildContext context) {
+    final hex = [
+      zone.red,
+      zone.green,
+      zone.blue,
+    ].map((v) => v.toRadixString(16).padLeft(2, '0')).join().toUpperCase();
+    return Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+              color: zone.color,
+              border: Border.all(color: Colors.white54),
+            ),
+          ),
+          Text(" $hex", style: Theme.of(context).textTheme.bodySmall),
+        ],
       ),
     );
   }

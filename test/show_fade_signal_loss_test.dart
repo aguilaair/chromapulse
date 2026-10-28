@@ -22,9 +22,7 @@ class FakeArtnet extends ArtnetProvider {
   ArtnetState build() => ArtnetState(
     ip: '',
     port: 0,
-    red: _channel(0),
-    green: _channel(0),
-    blue: _channel(0),
+    zones: const [RgbZone.off],
     brightness: _channel(255),
     torch: DmxChannel.unused,
     isBroadcasting: false,
@@ -37,11 +35,7 @@ class FakeArtnet extends ArtnetProvider {
   /// Mirrors ArtnetProvider.handleData: timestamp first, then channel values.
   void packet(int r, int g, int b) {
     state = state.copyWith(lastValidPacketTime: DateTime.now());
-    state = state.copyWith(
-      red: _channel(r),
-      green: _channel(g),
-      blue: _channel(b),
-    );
+    state = state.copyWith(zones: [RgbZone(r, g, b)]);
   }
 
   void goSilent() {

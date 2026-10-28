@@ -19,14 +19,12 @@ class ExportConfigDialog extends StatefulHookConsumerWidget {
 
 class _ExportConfigDialogState extends ConsumerState<ExportConfigDialog> {
   SettingsState qrData = SettingsState();
-  late int numChannels;
 
   @override
   void initState() {
     super.initState();
     final settings = ref.read(settingsStateProvider);
     qrData = settings;
-    numChannels = settings.channelCount;
   }
 
   @override
@@ -71,12 +69,9 @@ class _ExportConfigDialogState extends ConsumerState<ExportConfigDialog> {
           // Outline button to go to next channel
           OutlinedButton.icon(
             onPressed: () {
-              final newChannel = qrData.dmxStartChannel + numChannels;
               setState(() {
                 qrData = qrData.copyWith(
-                  dmxStartChannel: newChannel + numChannels - 1 > 512
-                      ? 1
-                      : newChannel,
+                  dmxStartChannel: qrData.nextStartChannel,
                 );
                 channelController.value = TextEditingValue(
                   text: qrData.dmxStartChannel.toString(),
