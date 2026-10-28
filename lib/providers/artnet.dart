@@ -254,8 +254,8 @@ class ArtnetProvider extends Notifier<ArtnetState> {
     final packet = ArtnetPollReplyPacket();
     packet.ip = ip;
     packet.port = ref.read(settingsStateProvider).controllerPort;
-    packet.shortName = 'ChromaPulse v1.0.0';
-    packet.longName = 'ChromaPulse';
+    packet.shortName = settings.deviceName;
+    packet.longName = settings.deviceName;
     packet.universe = ref.read(settingsStateProvider).universe;
     packet.status2IpIsSetManually = true;
     packet.setPortType(ref.read(settingsStateProvider).dmxStartChannel, 0);
