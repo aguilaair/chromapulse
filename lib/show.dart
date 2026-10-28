@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:chromapulse/dimmer.dart';
 import 'package:chromapulse/providers/artnet.dart';
 import 'package:chromapulse/providers/providers.dart';
 import 'package:chromapulse/providers/settings.dart';
@@ -18,17 +19,36 @@ class ShowPage extends StatefulHookConsumerWidget {
   ConsumerState<ConsumerStatefulWidget> createState() => _ShowPageState();
 }
 
-class _ShowPageState extends ConsumerState<ShowPage> {
+class _ShowPageState extends ConsumerState<ShowPage>
+    with SingleTickerProviderStateMixin {
+  static const _brightnessInterval = Duration(milliseconds: 50);
+
   bool _torchAvailable = false;
   bool _torchOn = false;
   Future<void> _torchQueue = Future.value();
   bool _signalLost = false;
   Timer? _signalTimer;
 
+  late final SettingsState _settings;
+  late final AnimationController _fade;
+  late LightLevels _from;
+  late LightLevels _to;
+  double? _sentBrightness;
+  DateTime _sentAt = DateTime(0);
+
+  LightLevels get _shown =>
+      LightLevels.lerp(_from, _to, _fade.value).output(_settings);
+
   @override
   void initState() {
     super.initState();
     _checkTorch();
+    _settings = ref.read(settingsStateProvider);
+    _fade = AnimationController(vsync: this)
+      ..addListener(() => _pushBrightness(force: _fade.isCompleted));
+    _from = _to = _levels(ref.read(artnetStateProvider));
+    _pushBrightness(force: true);
+    ref.listenManual(artnetStateProvider, (_, dmx) => _fadeTo(_levels(dmx)));
     _signalTimer = Timer.periodic(
       const Duration(milliseconds: 250),
       (_) => _checkSignal(),
@@ -43,6 +63,15 @@ class _ShowPageState extends ConsumerState<ShowPage> {
         artnet.streamTerminated ||
         settings.isSignalLost(artnet.lastValidPacketTime, DateTime.now());
     if (lost == _signalLost) return;
+    if (!lost) {
+      // Recovery is instant: jump to the packet's look instead of fading in
+      // from whatever was showing before the loss.
+      scheduleMicrotask(() {
+        if (mounted) {
+          setState(() => _snap(_levels(ref.read(artnetStateProvider))));
+        }
+      });
+    }
     setState(() {
       _signalLost = lost;
       if (settings.signalLossAction == SignalLossAction.hold) return;
@@ -56,6 +85,40 @@ class _ShowPageState extends ConsumerState<ShowPage> {
         });
       }
     });
+  }
+
+  LightLevels _levels(ArtnetState dmx) =>
+      LightLevels.fromDmx(dmx, brightness: _settings.use4Channels);
+
+  void _fadeTo(LightLevels target) {
+    if (target == _to) return;
+    final fadeTimeMs = _settings.fadeTimeMs;
+    if (fadeTimeMs == 0) {
+      _snap(target);
+      return;
+    }
+    _from = LightLevels.lerp(_from, _to, _fade.value);
+    _to = target;
+    _fade.duration = Duration(milliseconds: fadeTimeMs);
+    _fade.forward(from: 0);
+  }
+
+  void _snap(LightLevels target) {
+    _fade.stop();
+    _from = _to = target;
+    _pushBrightness(force: true);
+  }
+
+  /// The platform call is slow, so fades update it at most every
+  /// [_brightnessInterval]; [force] lands the final value.
+  void _pushBrightness({bool force = false}) {
+    final level = _shown.brightness;
+    if (level == null || level == _sentBrightness) return;
+    final now = DateTime.now();
+    if (!force && now.difference(_sentAt) < _brightnessInterval) return;
+    _sentBrightness = level;
+    _sentAt = now;
+    ScreenBrightness().setApplicationScreenBrightness(level);
   }
 
   Future<void> _checkTorch() async {
@@ -96,6 +159,7 @@ class _ShowPageState extends ConsumerState<ShowPage> {
   void dispose() {
     _signalTimer?.cancel();
     cleanUp();
+    _fade.dispose();
     super.dispose();
   }
 
@@ -114,7 +178,6 @@ class _ShowPageState extends ConsumerState<ShowPage> {
 
   late ArtnetState? artnetState;
   bool _isBannerVisible = false;
-  int lastBrightness = -1;
 
   @override
   Widget build(BuildContext context) {
@@ -152,23 +215,6 @@ class _ShowPageState extends ConsumerState<ShowPage> {
       packetTimeAgo = "Never";
     }
 
-    final liveColor = Color.fromARGB(
-      255,
-      artnetState?.red.value ?? 0,
-      artnetState?.green.value ?? 0,
-      artnetState?.blue.value ?? 0,
-    );
-
-    if (is4Channel) {
-      if (lastBrightness == -1 && artnetState?.brightness.value != null) {
-        lastBrightness = artnetState?.brightness.value ?? 0;
-        ScreenBrightness().setApplicationScreenBrightness(lastBrightness / 255);
-      } else if (artnetState?.brightness.value != null &&
-          lastBrightness != (artnetState!.brightness.value)) {
-        lastBrightness = artnetState?.brightness.value ?? 0;
-        ScreenBrightness().setApplicationScreenBrightness(lastBrightness / 255);
-      }
-    }
     return Scaffold(
       body: GestureDetector(
         onDoubleTap: () {
@@ -180,24 +226,36 @@ class _ShowPageState extends ConsumerState<ShowPage> {
         child: Stack(
           children: [
             Positioned(
-              child: AnimatedContainer(
-                width: double.infinity,
-                height: double.infinity,
-                duration:
-                    _signalLost &&
-                        settings.signalLossAction == SignalLossAction.fade
-                    ? const Duration(seconds: 2)
-                    : Duration.zero,
-                color: !_signalLost
-                    ? liveColor
-                    : switch (settings.signalLossAction) {
-                        SignalLossAction.hold => liveColor,
-                        SignalLossAction.blackout ||
-                        SignalLossAction.fade => Colors.black,
-                        SignalLossAction.colour => Color(
-                          0xFF000000 | settings.signalLossColor,
-                        ),
-                      },
+              child: AnimatedBuilder(
+                animation: _fade,
+                builder: (context, _) {
+                  final shown = _shown;
+                  final liveColor = Color.from(
+                    alpha: 1,
+                    red: shown.red,
+                    green: shown.green,
+                    blue: shown.blue,
+                  );
+                  return AnimatedContainer(
+                    width: double.infinity,
+                    height: double.infinity,
+                    duration:
+                        _signalLost &&
+                            settings.signalLossAction == SignalLossAction.fade
+                        ? const Duration(seconds: 2)
+                        : Duration.zero,
+                    color: !_signalLost
+                        ? liveColor
+                        : switch (settings.signalLossAction) {
+                            SignalLossAction.hold => liveColor,
+                            SignalLossAction.blackout ||
+                            SignalLossAction.fade => Colors.black,
+                            SignalLossAction.colour => Color(
+                              0xFF000000 | settings.signalLossColor,
+                            ),
+                          },
+                  );
+                },
               ),
             ),
             if ((packetTimeDifference?.inSeconds ?? 11) > 10)
