@@ -3,6 +3,19 @@ import 'dart:convert';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
+enum DmxProtocol {
+  artnet('Art-Net'),
+  sacn('sACN'),
+  both('Both');
+
+  const DmxProtocol(this.label);
+
+  final String label;
+
+  bool get receivesArtnet => this != sacn;
+  bool get receivesSacn => this != artnet;
+}
+
 class SettingsState {
   final int dmxStartChannel;
   final int universe;
@@ -11,6 +24,7 @@ class SettingsState {
   final int controllerPort;
   final bool use4Channels;
   final bool useTorchChannel;
+  final DmxProtocol protocol;
 
   SettingsState({
     this.dmxStartChannel = 1,
@@ -20,6 +34,7 @@ class SettingsState {
     this.controllerPort = 6454,
     this.use4Channels = true,
     this.useTorchChannel = false,
+    this.protocol = DmxProtocol.artnet,
   });
 
   /// Number of consecutive DMX channels this device listens to.
@@ -41,6 +56,7 @@ class SettingsState {
     int? controllerPort,
     bool? use4Channels,
     bool? useTorchChannel,
+    DmxProtocol? protocol,
   }) {
     return SettingsState(
       dmxStartChannel: dmxStartChannel ?? this.dmxStartChannel,
@@ -50,6 +66,7 @@ class SettingsState {
       controllerPort: controllerPort ?? this.controllerPort,
       use4Channels: use4Channels ?? this.use4Channels,
       useTorchChannel: useTorchChannel ?? this.useTorchChannel,
+      protocol: protocol ?? this.protocol,
     );
   }
 
@@ -62,6 +79,7 @@ class SettingsState {
       'controllerPort': controllerPort,
       'use4Channels': use4Channels,
       'useTorchChannel': useTorchChannel,
+      'protocol': protocol.name,
     };
   }
 
@@ -74,6 +92,8 @@ class SettingsState {
       controllerPort: map['controllerPort']?.toInt() ?? 6454,
       use4Channels: map['use4Channels'] ?? true,
       useTorchChannel: map['useTorchChannel'] ?? false,
+      protocol:
+          DmxProtocol.values.asNameMap()[map['protocol']] ?? DmxProtocol.artnet,
     );
   }
 
@@ -84,7 +104,7 @@ class SettingsState {
 
   @override
   String toString() {
-    return 'SettingsState(dmxStartChannel: $dmxStartChannel, universe: $universe, allowBroadcast: $allowBroadcast, controllerIpAddress: $controllerIpAddress, controllerPort: $controllerPort, use4Channels: $use4Channels, useTorchChannel: $useTorchChannel)';
+    return 'SettingsState(dmxStartChannel: $dmxStartChannel, universe: $universe, allowBroadcast: $allowBroadcast, controllerIpAddress: $controllerIpAddress, controllerPort: $controllerPort, use4Channels: $use4Channels, useTorchChannel: $useTorchChannel, protocol: $protocol)';
   }
 
   @override
@@ -98,7 +118,8 @@ class SettingsState {
         other.controllerIpAddress == controllerIpAddress &&
         other.controllerPort == controllerPort &&
         other.use4Channels == use4Channels &&
-        other.useTorchChannel == useTorchChannel;
+        other.useTorchChannel == useTorchChannel &&
+        other.protocol == protocol;
   }
 
   @override
@@ -109,7 +130,8 @@ class SettingsState {
         controllerIpAddress.hashCode ^
         controllerPort.hashCode ^
         use4Channels.hashCode ^
-        useTorchChannel.hashCode;
+        useTorchChannel.hashCode ^
+        protocol.hashCode;
   }
 }
 
@@ -149,6 +171,9 @@ class SettingsProvider extends Notifier<SettingsState> {
 
   void setUseTorchChannel(bool value) =>
       _update(state.copyWith(useTorchChannel: value));
+
+  void setProtocol(DmxProtocol value) =>
+      _update(state.copyWith(protocol: value));
 
   void reset() => _update(SettingsState());
 
