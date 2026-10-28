@@ -19,6 +19,30 @@ void main() {
       );
     });
 
+    test('strobe channel comes last', () {
+      expect(SettingsState(use4Channels: false).strobeChannelOffset, 3);
+      expect(SettingsState(use4Channels: true).strobeChannelOffset, 4);
+      expect(
+        SettingsState(
+          use4Channels: true,
+          useTorchChannel: true,
+        ).strobeChannelOffset,
+        5,
+      );
+      expect(
+        SettingsState(
+          use4Channels: true,
+          useTorchChannel: true,
+          useStrobeChannel: true,
+        ).channelCount,
+        6,
+      );
+      expect(
+        SettingsState(use4Channels: false, useStrobeChannel: true).channelCount,
+        4,
+      );
+    });
+
     test('torch channel follows brightness when enabled', () {
       expect(SettingsState(use4Channels: true).torchChannelOffset, 4);
       expect(SettingsState(use4Channels: false).torchChannelOffset, 3);
@@ -75,6 +99,7 @@ void main() {
         dimmerCurve: DimmerCurve.square,
         curveRgb: true,
         fadeTimeMs: 250,
+        useStrobeChannel: true,
       );
       final decoded = SettingsState.fromJson(settings.toJson());
       expect(decoded, settings);
@@ -112,6 +137,13 @@ void main() {
       expect(imported.protocol, DmxProtocol.sacn);
     });
 
+    test('the QR export keeps the strobe channel', () {
+      final settings = SettingsState(useStrobeChannel: true, deviceName: 'Bar');
+      final imported = SettingsState.fromJson(settings.toSharedJson());
+      expect(imported.useStrobeChannel, true);
+      expect(imported.channelCount, 5);
+    });
+
     test('parseDeviceName accepts trimmed printable ASCII up to 17 chars', () {
       expect(SettingsState.parseDeviceName('Stage Left 3'), 'Stage Left 3');
       expect(SettingsState.parseDeviceName('  Bar  '), 'Bar');
@@ -146,6 +178,17 @@ void main() {
       );
       expect(settings.protocol, DmxProtocol.artnet);
       expect(settings.useTorchChannel, true);
+    });
+
+    test('configs exported before the strobe channel still import', () {
+      final settings = SettingsState.fromJson(
+        '{"dmxStartChannel":5,"universe":1,"allowBroadcast":true,'
+        '"controllerIpAddress":"","controllerPort":6454,"use4Channels":true,'
+        '"useTorchChannel":true}',
+      );
+      expect(settings.useStrobeChannel, false);
+      expect(settings.useTorchChannel, true);
+      expect(settings.channelCount, 5);
     });
 
     test('protocol survives the JSON round trip', () {

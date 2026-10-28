@@ -37,6 +37,7 @@ class SettingsState {
   final DimmerCurve dimmerCurve;
   final bool curveRgb;
   final int fadeTimeMs;
+  final bool useStrobeChannel;
 
   static const defaultDeviceName = 'ChromaPulse';
 
@@ -60,14 +61,17 @@ class SettingsState {
     this.dimmerCurve = DimmerCurve.linear,
     this.curveRgb = false,
     this.fadeTimeMs = 0,
+    this.useStrobeChannel = false,
   });
 
   /// Number of consecutive DMX channels this device listens to.
-  int get channelCount =>
-      3 + (use4Channels ? 1 : 0) + (useTorchChannel ? 1 : 0);
+  int get channelCount => strobeChannelOffset + (useStrobeChannel ? 1 : 0);
 
   /// Offset of the torch channel from [dmxStartChannel].
   int get torchChannelOffset => use4Channels ? 4 : 3;
+
+  /// Offset of the strobe channel from [dmxStartChannel].
+  int get strobeChannelOffset => torchChannelOffset + (useTorchChannel ? 1 : 0);
 
   /// Whether every channel from [dmxStartChannel] fits inside one universe.
   bool get fitsUniverse =>
@@ -93,6 +97,7 @@ class SettingsState {
     DimmerCurve? dimmerCurve,
     bool? curveRgb,
     int? fadeTimeMs,
+    bool? useStrobeChannel,
   }) {
     return SettingsState(
       dmxStartChannel: dmxStartChannel ?? this.dmxStartChannel,
@@ -110,6 +115,7 @@ class SettingsState {
       dimmerCurve: dimmerCurve ?? this.dimmerCurve,
       curveRgb: curveRgb ?? this.curveRgb,
       fadeTimeMs: fadeTimeMs ?? this.fadeTimeMs,
+      useStrobeChannel: useStrobeChannel ?? this.useStrobeChannel,
     );
   }
 
@@ -130,6 +136,7 @@ class SettingsState {
       'dimmerCurve': dimmerCurve.name,
       'curveRgb': curveRgb,
       'fadeTimeMs': fadeTimeMs,
+      'useStrobeChannel': useStrobeChannel,
     };
   }
 
@@ -156,6 +163,7 @@ class SettingsState {
         0,
         maxFadeTimeMs,
       ),
+      useStrobeChannel: map['useStrobeChannel'] ?? false,
     );
   }
 
@@ -177,7 +185,7 @@ class SettingsState {
 
   @override
   String toString() {
-    return 'SettingsState(dmxStartChannel: $dmxStartChannel, universe: $universe, allowBroadcast: $allowBroadcast, controllerIpAddress: $controllerIpAddress, controllerPort: $controllerPort, use4Channels: $use4Channels, useTorchChannel: $useTorchChannel, protocol: $protocol, deviceName: $deviceName, signalLossAction: $signalLossAction, signalLossTimeout: $signalLossTimeout, signalLossColor: $signalLossColor, dimmerCurve: $dimmerCurve, curveRgb: $curveRgb, fadeTimeMs: $fadeTimeMs)';
+    return 'SettingsState(dmxStartChannel: $dmxStartChannel, universe: $universe, allowBroadcast: $allowBroadcast, controllerIpAddress: $controllerIpAddress, controllerPort: $controllerPort, use4Channels: $use4Channels, useTorchChannel: $useTorchChannel, protocol: $protocol, deviceName: $deviceName, signalLossAction: $signalLossAction, signalLossTimeout: $signalLossTimeout, signalLossColor: $signalLossColor, dimmerCurve: $dimmerCurve, curveRgb: $curveRgb, fadeTimeMs: $fadeTimeMs, useStrobeChannel: $useStrobeChannel)';
   }
 
   @override
@@ -199,7 +207,8 @@ class SettingsState {
         other.signalLossColor == signalLossColor &&
         other.dimmerCurve == dimmerCurve &&
         other.curveRgb == curveRgb &&
-        other.fadeTimeMs == fadeTimeMs;
+        other.fadeTimeMs == fadeTimeMs &&
+        other.useStrobeChannel == useStrobeChannel;
   }
 
   @override
@@ -218,7 +227,8 @@ class SettingsState {
         signalLossColor.hashCode ^
         dimmerCurve.hashCode ^
         curveRgb.hashCode ^
-        fadeTimeMs.hashCode;
+        fadeTimeMs.hashCode ^
+        useStrobeChannel.hashCode;
   }
 }
 
@@ -280,6 +290,9 @@ class SettingsProvider extends Notifier<SettingsState> {
 
   void setSignalLossColor(int value) =>
       _update(state.copyWith(signalLossColor: value));
+
+  void setUseStrobeChannel(bool value) =>
+      _update(state.copyWith(useStrobeChannel: value));
 
   void reset() => _update(SettingsState());
 
