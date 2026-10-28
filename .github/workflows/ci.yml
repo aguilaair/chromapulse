@@ -28,7 +28,7 @@ jobs:
       - run: flutter test
 
   android:
-    name: Android debug build
+    name: Android release build
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -43,4 +43,22 @@ jobs:
           flutter-version-file: .fvmrc
           cache: true
       - run: flutter pub get
-      - run: flutter build apk --debug
+      - run: flutter build apk --release
+      - uses: actions/upload-artifact@v7
+        with:
+          name: chromapulse-${{ github.sha }}-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+
+  ios:
+    name: iOS release build
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version-file: .fvmrc
+          cache: true
+      - run: flutter pub get
+      - run: flutter build ios --release --no-codesign
