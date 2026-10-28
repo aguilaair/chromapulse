@@ -129,5 +129,78 @@ void main() {
         DmxProtocol.sacn,
       );
     });
+
+    test('signal loss defaults to holding the last look', () {
+      final settings = SettingsState();
+      expect(settings.signalLossAction, SignalLossAction.hold);
+      expect(settings.signalLossTimeout, 4);
+      expect(settings.signalLossColor, 0xFFFFFF);
+    });
+
+    test('configs exported before signal loss still import', () {
+      final settings = SettingsState.fromJson(
+        '{"dmxStartChannel":5,"universe":1,"allowBroadcast":true,'
+        '"controllerIpAddress":"","controllerPort":6454,"use4Channels":true,'
+        '"useTorchChannel":true}',
+      );
+      expect(settings.signalLossAction, SignalLossAction.hold);
+      expect(settings.signalLossTimeout, 4);
+      expect(settings.signalLossColor, 0xFFFFFF);
+      expect(settings.useTorchChannel, true);
+    });
+
+    test('signal loss settings survive a JSON round trip', () {
+      final settings = SettingsState(
+        signalLossAction: SignalLossAction.fade,
+        signalLossTimeout: 7,
+        signalLossColor: 0x00FF00,
+      );
+      final restored = SettingsState.fromJson(settings.toJson());
+      expect(restored, settings);
+      expect(restored.signalLossAction, SignalLossAction.fade);
+      expect(restored.signalLossTimeout, 7);
+      expect(restored.signalLossColor, 0x00FF00);
+    });
+
+    test('the shared config carries the signal loss settings', () {
+      final settings = SettingsState(
+        deviceName: 'Bar',
+        signalLossAction: SignalLossAction.colour,
+        signalLossTimeout: 9,
+        signalLossColor: 0xFF8800,
+      );
+      final imported = SettingsState.fromJson(settings.toSharedJson());
+      expect(imported.deviceName, 'ChromaPulse');
+      expect(imported.signalLossAction, SignalLossAction.colour);
+      expect(imported.signalLossTimeout, 9);
+      expect(imported.signalLossColor, 0xFF8800);
+    });
+
+    test('unknown signal loss action falls back to hold', () {
+      final settings = SettingsState.fromJson('{"signalLossAction":"explode"}');
+      expect(settings.signalLossAction, SignalLossAction.hold);
+    });
+
+    test('imported signal loss values are kept in range', () {
+      final settings = SettingsState.fromJson(
+        '{"signalLossTimeout":0,"signalLossColor":4294967295}',
+      );
+      expect(settings.signalLossTimeout, 1);
+      expect(settings.signalLossColor, 0xFFFFFF);
+    });
+
+    test('isSignalLost compares the last packet against the timeout', () {
+      final settings = SettingsState(signalLossTimeout: 4);
+      final now = DateTime(2025, 1, 1, 12);
+      expect(settings.isSignalLost(null, now), true);
+      expect(
+        settings.isSignalLost(now.subtract(const Duration(seconds: 3)), now),
+        false,
+      );
+      expect(
+        settings.isSignalLost(now.subtract(const Duration(seconds: 4)), now),
+        true,
+      );
+    });
   });
 }
