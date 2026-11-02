@@ -50,6 +50,6 @@ flutter build ios
 To test without a lighting desk, send DMX from your computer with `tool/dmx_send.py`:
 
 ```bash
-tool/dmx_send.py artnet 192.168.1.20 255 0 0
-tool/dmx_send.py sacn multicast 0 255 0 --universe 2
+python3 tool/dmx_send.py artnet 192.168.1.20 255 0 0
+python3 tool/dmx_send.py sacn multicast 0 255 0 --universe 2
 ```
